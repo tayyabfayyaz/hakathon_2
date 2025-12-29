@@ -4,9 +4,52 @@ const path = require('path');
 const nextConfig = {
   reactStrictMode: true,
 
+  // Experimental features
+  experimental: {
+    // Externalize native modules that shouldn't be bundled
+    serverComponentsExternalPackages: ['better-sqlite3'],
+  },
+
   // Webpack configuration for path aliases
-  webpack: (config) => {
-    config.resolve.alias['@'] = path.join(__dirname, 'src');
+  webpack: (config, { isServer, dir }) => {
+    // Use 'dir' provided by Next.js for reliable path resolution on Vercel
+    const projectDir = dir || process.cwd();
+
+    // Explicit path alias resolution
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.join(projectDir, 'src'),
+    };
+
+    // Ensure proper module resolution
+    config.resolve.modules = [
+      path.join(projectDir, 'src'),
+      path.join(projectDir, 'node_modules'),
+      'node_modules',
+    ];
+
+    // Externalize native modules completely
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('better-sqlite3');
+    }
+
+    // Exclude native modules from client-side bundling
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+        os: false,
+        stream: false,
+        buffer: false,
+      };
+
+      // Ignore better-sqlite3 on client side
+      config.resolve.alias['better-sqlite3'] = false;
+    }
+
     return config;
   },
 

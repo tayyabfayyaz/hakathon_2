@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from fastapi import HTTPException, status
 from .config import get_settings
 
 settings = get_settings()
@@ -43,6 +44,58 @@ def decode_access_token(token: str) -> Optional[dict]:
             token,
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm]
+        )
+        return payload
+    except JWTError:
+        return None
+
+
+def verify_better_auth_token(token: str) -> dict:
+    """Verify a JWT token from Better Auth.
+
+    Better Auth issues JWT tokens that we need to verify using the shared secret.
+    This function decodes and validates the token, returning the payload if valid.
+
+    Args:
+        token: The JWT token from Better Auth (from cookie or header)
+
+    Returns:
+        The decoded token payload containing user information
+
+    Raises:
+        HTTPException: If the token is invalid, expired, or malformed
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.better_auth_secret,
+            algorithms=["HS256"]
+        )
+        return payload
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error_code": "INVALID_TOKEN",
+                "message": f"Invalid authentication token: {str(e)}"
+            }
+        )
+
+
+def decode_better_auth_token(token: str) -> Optional[dict]:
+    """Decode a Better Auth JWT token without raising exceptions.
+
+    Args:
+        token: The JWT token from Better Auth
+
+    Returns:
+        The decoded payload if valid, None otherwise
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.better_auth_secret,
+            algorithms=["HS256"]
         )
         return payload
     except JWTError:

@@ -2,21 +2,26 @@
 
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { validateEmail, validatePassword } from '@/lib/validation';
+import { signUp } from '@/lib/auth-client';
 
 interface RegisterFormProps {
-  onSubmit: (email: string, password: string) => Promise<void>;
+  onSubmit?: (email: string, password: string) => Promise<void>;
   isLoading?: boolean;
   error?: string | null;
+  redirectTo?: string;
 }
 
-export default function RegisterForm({ onSubmit, isLoading, error }: RegisterFormProps) {
+export default function RegisterForm({ onSubmit, isLoading: externalLoading, error: externalError, redirectTo = '/tasks' }: RegisterFormProps) {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string; form?: string }>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -45,8 +50,37 @@ export default function RegisterForm({ onSubmit, isLoading, error }: RegisterFor
     }
 
     setErrors({});
-    await onSubmit(email.trim(), password);
+    setIsLoading(true);
+
+    try {
+      // Use Better Auth signUp with explicit callback to prevent default redirect
+      const result = await signUp.email({
+        email: email.trim(),
+        password,
+        name: email.split('@')[0], // Use email prefix as display name
+        callbackURL: redirectTo, // Explicit redirect to /tasks
+      });
+
+      if (result.error) {
+        if (result.error.code === 'USER_ALREADY_EXISTS') {
+          setErrors({ email: 'An account with this email already exists' });
+        } else {
+          setErrors({ form: result.error.message || 'Registration failed' });
+        }
+      } else {
+        // Registration successful - redirect to tasks page
+        router.push(redirectTo);
+        router.refresh(); // Force refresh to update session state
+      }
+    } catch (err) {
+      setErrors({ form: 'An unexpected error occurred. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const loading = isLoading || externalLoading;
+  const formError = errors.form || externalError;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -58,7 +92,7 @@ export default function RegisterForm({ onSubmit, isLoading, error }: RegisterFor
         error={errors.email}
         placeholder="you@example.com"
         autoComplete="email"
-        disabled={isLoading}
+        disabled={loading}
       />
 
       <Input
@@ -69,7 +103,7 @@ export default function RegisterForm({ onSubmit, isLoading, error }: RegisterFor
         error={errors.password}
         placeholder="At least 8 characters"
         autoComplete="new-password"
-        disabled={isLoading}
+        disabled={loading}
       />
 
       <Input
@@ -80,12 +114,12 @@ export default function RegisterForm({ onSubmit, isLoading, error }: RegisterFor
         error={errors.confirmPassword}
         placeholder="Confirm your password"
         autoComplete="new-password"
-        disabled={isLoading}
+        disabled={loading}
       />
 
-      {error && (
+      {formError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-600">{formError}</p>
         </div>
       )}
 
@@ -93,7 +127,7 @@ export default function RegisterForm({ onSubmit, isLoading, error }: RegisterFor
         type="submit"
         variant="primary"
         className="w-full"
-        isLoading={isLoading}
+        isLoading={loading}
       >
         Create Account
       </Button>

@@ -1,7 +1,10 @@
 export interface User {
   id: string;
   email: string;
-  created_at: string;
+  name?: string;
+  image?: string;
+  created_at?: string;
+  emailVerified?: boolean;
 }
 
 export interface Todo {

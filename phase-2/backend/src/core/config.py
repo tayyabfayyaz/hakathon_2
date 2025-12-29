@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
 
+    # Better Auth Secret (for verifying Better Auth JWT tokens)
+    better_auth_secret: str = "better-auth-secret-change-in-production"
+
     # CORS
     cors_origins: str = "http://localhost:3000"
 

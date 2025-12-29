@@ -12,7 +12,7 @@ export default function RegisterPage() {
   const handleSubmit = async (email: string, password: string) => {
     const success = await register({ email, password });
     if (success) {
-      router.push('/todos');
+      router.push('/tasks');
     }
   };
 
