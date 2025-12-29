@@ -1,0 +1,425 @@
+openapi: 3.1.0
+info:
+  title: Better Auth JWT Authentication API
+  description: |
+    Authentication API using Better Auth with JWT tokens.
+
+    ## Architecture
+    - **Frontend (Next.js)**: Handles authentication via Better Auth
+    - **Backend (FastAPI)**: Verifies JWT tokens for protected endpoints
+
+    ## Authentication Flow
+    1. User authenticates via Better Auth endpoints (Next.js API routes)
+    2. Better Auth issues JWT token stored in httpOnly cookie
+    3. FastAPI validates JWT on protected endpoint requests
+  version: 1.0.0
+  contact:
+    name: TodoList Pro API
+servers:
+  - url: http://localhost:3000/api/auth
+    description: Better Auth (Next.js) - Authentication
+  - url: http://localhost:8000/api/v1
+    description: FastAPI Backend - Protected Resources
+
+tags:
+  - name: Better Auth (Frontend)
+    description: Authentication endpoints handled by Better Auth on Next.js
+  - name: Protected (Backend)
+    description: FastAPI endpoints requiring JWT authentication
+
+paths:
+  # ==========================================
+  # BETTER AUTH ENDPOINTS (Next.js Frontend)
+  # ==========================================
+
+  /sign-up/email:
+    post:
+      tags:
+        - Better Auth (Frontend)
+      summary: Register new user with email/password
+      description: Creates a new user account and returns a session with JWT token
+      operationId: signUpEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Session cookie with JWT token
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sign-in/email:
+    post:
+      tags:
+        - Better Auth (Frontend)
+      summary: Login with email/password
+      description: Authenticates user and returns a session with JWT token
+      operationId: signInEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Session cookie with JWT token
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sign-out:
+    post:
+      tags:
+        - Better Auth (Frontend)
+      summary: Logout current user
+      description: Invalidates the current session and clears auth cookies
+      operationId: signOut
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+  /session:
+    get:
+      tags:
+        - Better Auth (Frontend)
+      summary: Get current session
+      description: Returns the current user session if authenticated
+      operationId: getSession
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================
+  # FASTAPI PROTECTED ENDPOINTS (Backend)
+  # ==========================================
+
+  /auth/me:
+    get:
+      tags:
+        - Protected (Backend)
+      summary: Get current user info
+      description: Returns authenticated user information from JWT token
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tasks:
+    get:
+      tags:
+        - Protected (Backend)
+      summary: List user's tasks
+      description: Returns all tasks for the authenticated user
+      operationId: listTasks
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, completed, remaining]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Protected (Backend)
+      summary: Create new task
+      description: Creates a new task for the authenticated user
+      operationId: createTask
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token in Authorization header
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: better-auth.session_token
+      description: Session cookie set by Better Auth
+
+  schemas:
+    SignUpRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: user@example.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          example: SecureP@ss123
+        name:
+          type: string
+          maxLength: 100
+          example: John Doe
+
+    SignInRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: SecureP@ss123
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/UserResponse'
+        session:
+          $ref: '#/components/schemas/SessionInfo'
+
+    SessionResponse:
+      type: object
+      properties:
+        session:
+          $ref: '#/components/schemas/SessionInfo'
+        user:
+          $ref: '#/components/schemas/UserResponse'
+
+    SessionInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          example: sess_abc123
+        expiresAt:
+          type: string
+          format: date-time
+        token:
+          type: string
+          description: JWT token (only in response, stored in cookie)
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: user_xyz789
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          example: John Doe
+        emailVerified:
+          type: boolean
+          example: true
+        image:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    TaskListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+        next_cursor:
+          type: string
+          nullable: true
+        total_count:
+          type: integer
+
+    TaskResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        is_completed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TaskCreateRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+      properties:
+        error_code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Invalid input data
+        details:
+          type: object
+          properties:
+            fields:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  error:
+                    type: string

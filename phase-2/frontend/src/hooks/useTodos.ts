@@ -47,14 +47,22 @@ export function useTodos(): UseTodosReturn {
       }
 
       const queryString = params.toString();
-      const endpoint = `/todos${queryString ? `?${queryString}` : ''}`;
+      const endpoint = `/tasks${queryString ? `?${queryString}` : ''}`;
 
       const response = await api.get<TodoListResponse>(endpoint);
+      if (!response || !Array.isArray(response.items)) {
+        console.error('[fetchTodos] Invalid response:', response);
+        setError('Invalid response from server');
+        return;
+      }
       setTodos(response.items);
       setTotalCount(response.total_count);
     } catch (err) {
+      console.error('[fetchTodos] Error:', err);
       if (err instanceof ApiException) {
         setError(err.error.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError('Failed to fetch todos');
       }
@@ -66,14 +74,22 @@ export function useTodos(): UseTodosReturn {
   const createTodo = useCallback(async (data: TodoCreate): Promise<boolean> => {
     try {
       setError(null);
-      const newTodo = await api.post<Todo>('/todos', data);
-      // Optimistic update - add to beginning of list
+      const newTodo = await api.post<Todo>('/tasks', data);
+      if (!newTodo || !newTodo.id) {
+        console.error('[createTodo] Invalid response:', newTodo);
+        setError('Invalid response from server');
+        return false;
+      }
+      // Add the new todo to the beginning of list
       setTodos((prev) => [newTodo, ...prev]);
       setTotalCount((prev) => prev + 1);
       return true;
     } catch (err) {
+      console.error('[createTodo] Error:', err);
       if (err instanceof ApiException) {
         setError(err.error.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
         setError('Failed to create todo');
       }
@@ -94,7 +110,7 @@ export function useTodos(): UseTodosReturn {
         )
       );
 
-      await api.patch<Todo>(`/todos/${id}`, data);
+      await api.patch<Todo>(`/tasks/${id}`, data);
       return true;
     } catch (err) {
       // Rollback on error
@@ -119,7 +135,7 @@ export function useTodos(): UseTodosReturn {
       setTodos((prev) => prev.filter((todo) => todo.id !== id));
       setTotalCount((prev) => prev - 1);
 
-      await api.delete(`/todos/${id}`);
+      await api.delete(`/tasks/${id}`);
       return true;
     } catch (err) {
       // Rollback on error
@@ -149,7 +165,7 @@ export function useTodos(): UseTodosReturn {
         )
       );
 
-      await api.post<Todo>(`/todos/${id}/toggle`);
+      await api.post<Todo>(`/tasks/${id}/toggle`);
       return true;
     } catch (err) {
       // Rollback on error

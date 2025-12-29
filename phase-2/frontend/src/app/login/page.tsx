@@ -14,7 +14,7 @@ function LoginContent() {
   const handleSubmit = async (email: string, password: string) => {
     const success = await login({ email, password });
     if (success) {
-      const redirect = searchParams.get('redirect') || '/todos';
+      const redirect = searchParams.get('redirect') || '/tasks';
       router.push(redirect);
     }
   };

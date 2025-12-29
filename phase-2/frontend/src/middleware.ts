@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Routes that require authentication
-const protectedRoutes = ['/todos'];
+const protectedRoutes = ['/tasks'];
 
 // Routes that are only accessible to unauthenticated users
 const authRoutes = ['/login', '/register'];
@@ -10,13 +10,14 @@ const authRoutes = ['/login', '/register'];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for auth cookie (set by backend)
-  const authCookie = request.cookies.get('access_token');
-  const isAuthenticated = !!authCookie;
+  // Check for auth cookies (Better Auth session or legacy access token)
+  const betterAuthCookie = request.cookies.get('better-auth.session_token');
+  const legacyAuthCookie = request.cookies.get('access_token');
+  const isAuthenticated = !!(betterAuthCookie || legacyAuthCookie);
 
   // Redirect authenticated users away from auth pages
   if (isAuthenticated && authRoutes.some(route => pathname.startsWith(route))) {
-    return NextResponse.redirect(new URL('/todos', request.url));
+    return NextResponse.redirect(new URL('/tasks', request.url));
   }
 
   // Redirect unauthenticated users to login

@@ -1,17 +1,10 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { useAuthContext } from '@/contexts/AuthContext';
 
 export default function Header() {
-  const router = useRouter();
   const { user, logout, isLoading } = useAuthContext();
-
-  const handleLogout = async () => {
-    await logout();
-    router.push('/login');
-  };
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -26,7 +19,7 @@ export default function Header() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={handleLogout}
+              onClick={logout}
               isLoading={isLoading}
             >
               Logout

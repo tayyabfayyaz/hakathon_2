@@ -14,7 +14,7 @@ from src.services.todo_service import (
     toggle_todo_status,
 )
 
-router = APIRouter(prefix="/todos", tags=["Todos"])
+router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
 @router.post("", response_model=TodoRead, status_code=status.HTTP_201_CREATED)
