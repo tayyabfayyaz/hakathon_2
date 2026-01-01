@@ -1,0 +1,400 @@
+openapi: 3.1.0
+info:
+  title: TodoList Pro Tasks API
+  description: |
+    RESTful API for managing tasks in TodoList Pro application.
+    Authentication via Better-Auth JWT Bearer tokens.
+  version: 1.0.0
+  contact:
+    name: Tayyab Fayyaz
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.todolist-pro.com
+    description: Production server
+
+tags:
+  - name: Tasks
+    description: Task CRUD operations
+  - name: Health
+    description: API health and status
+
+security:
+  - BearerAuth: []
+
+paths:
+  /tasks:
+    get:
+      summary: List all tasks
+      description: Retrieve all tasks belonging to the authenticated user
+      operationId: listTasks
+      tags:
+        - Tasks
+      responses:
+        '200':
+          description: List of tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+              example:
+                tasks:
+                  - id: "01938f3a-1234-7000-8000-000000000001"
+                    text: "Buy groceries"
+                    completed: false
+                    created_at: "2025-12-31T10:00:00Z"
+                    updated_at: "2025-12-31T10:00:00Z"
+                    completed_at: null
+                  - id: "01938f3a-1234-7000-8000-000000000002"
+                    text: "Complete project"
+                    completed: true
+                    created_at: "2025-12-31T09:00:00Z"
+                    updated_at: "2025-12-31T11:00:00Z"
+                    completed_at: "2025-12-31T11:00:00Z"
+                count: 2
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      summary: Create a new task
+      description: Create a new task for the authenticated user
+      operationId: createTask
+      tags:
+        - Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+            example:
+              text: "Buy groceries"
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              example:
+                id: "01938f3a-1234-7000-8000-000000000001"
+                text: "Buy groceries"
+                completed: false
+                created_at: "2025-12-31T10:00:00Z"
+                updated_at: "2025-12-31T10:00:00Z"
+                completed_at: null
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tasks/{task_id}:
+    parameters:
+      - name: task_id
+        in: path
+        required: true
+        description: Unique task identifier (UUID)
+        schema:
+          type: string
+          format: uuid
+        example: "01938f3a-1234-7000-8000-000000000001"
+
+    get:
+      summary: Get a specific task
+      description: Retrieve a single task by ID (must belong to authenticated user)
+      operationId: getTask
+      tags:
+        - Tasks
+      responses:
+        '200':
+          description: Task retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      summary: Update a task (full)
+      description: Replace all task fields with new values
+      operationId: updateTask
+      tags:
+        - Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+            example:
+              text: "Buy groceries and cook dinner"
+              completed: false
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    patch:
+      summary: Update a task (partial)
+      description: Update specific task fields only
+      operationId: patchTask
+      tags:
+        - Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatch'
+            examples:
+              toggleComplete:
+                summary: Toggle completion status
+                value:
+                  completed: true
+              updateText:
+                summary: Update text only
+                value:
+                  text: "Updated task description"
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      summary: Delete a task
+      description: Permanently remove a task
+      operationId: deleteTask
+      tags:
+        - Tasks
+      responses:
+        '204':
+          description: Task deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /health:
+    get:
+      summary: Health check
+      description: Check API and database health status
+      operationId: healthCheck
+      tags:
+        - Health
+      security: []  # No auth required
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "healthy"
+                database: "connected"
+                version: "1.0.0"
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "unhealthy"
+                database: "disconnected"
+                version: "1.0.0"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Better-Auth JWT token
+
+  schemas:
+    TaskCreate:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Task description text
+          example: "Buy groceries"
+
+    TaskUpdate:
+      type: object
+      required:
+        - text
+        - completed
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Task description text
+        completed:
+          type: boolean
+          description: Whether the task is completed
+
+    TaskPatch:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Task description text
+        completed:
+          type: boolean
+          description: Whether the task is completed
+
+    TaskResponse:
+      type: object
+      required:
+        - id
+        - text
+        - completed
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique task identifier
+        text:
+          type: string
+          description: Task description text
+        completed:
+          type: boolean
+          description: Whether the task is completed
+        created_at:
+          type: string
+          format: date-time
+          description: When the task was created (ISO 8601)
+        updated_at:
+          type: string
+          format: date-time
+          description: When the task was last modified (ISO 8601)
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the task was marked complete (ISO 8601)
+
+    TaskListResponse:
+      type: object
+      required:
+        - tasks
+        - count
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+        count:
+          type: integer
+          description: Total number of tasks
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - database
+        - version
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        database:
+          type: string
+          enum: [connected, disconnected]
+        version:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code identifier
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missingToken:
+              summary: No token provided
+              value:
+                error: "UNAUTHORIZED"
+                message: "Authentication required"
+            invalidToken:
+              summary: Invalid or expired token
+              value:
+                error: "UNAUTHORIZED"
+                message: "Invalid or expired token"
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "NOT_FOUND"
+            message: "Task not found"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "VALIDATION_ERROR"
+            message: "Request validation failed"
+            details:
+              - "text: String should have at least 1 character"
