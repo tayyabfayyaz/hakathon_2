@@ -1,0 +1,22 @@
+# Spacefile Docs: https://go.deta.dev/docs/spacefile/v0
+v: 0
+micros:
+  - name: todolist-pro-api
+    src: .
+    engine: python3.11
+    primary: true
+    run: uvicorn app.main:app
+    presets:
+      env:
+        - name: DATABASE_URL
+          description: PostgreSQL connection string
+        - name: BETTER_AUTH_SECRET
+          description: Secret key for JWT authentication
+        - name: CORS_ORIGINS
+          description: Allowed CORS origins (comma-separated)
+        - name: API_VERSION
+          description: API version
+          default: "1.0.0"
+        - name: DEBUG
+          description: Debug mode
+          default: "false"
