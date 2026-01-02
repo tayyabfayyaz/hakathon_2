@@ -1,0 +1,288 @@
+openapi: 3.1.0
+info:
+  title: Todo AI Chatbot API
+  description: Chat endpoint for AI-powered task management
+  version: 1.0.0
+  contact:
+    name: TodoList Pro Team
+
+servers:
+  - url: /api
+    description: API base path
+
+paths:
+  /{user_id}/chat:
+    post:
+      operationId: sendChatMessage
+      summary: Send a chat message and receive AI response
+      description: |
+        Processes a user message through the AI agent and returns the assistant response.
+        The endpoint is stateless - conversation history is fetched from DB on each request.
+      tags:
+        - Chat
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User ID from JWT token (validated against token)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            examples:
+              addTask:
+                summary: Add a task
+                value:
+                  message: "Add a task to buy groceries tomorrow"
+              listTasks:
+                summary: List tasks
+                value:
+                  message: "What are my tasks?"
+              completeTask:
+                summary: Complete a task
+                value:
+                  message: "Mark the groceries task as done"
+      responses:
+        '200':
+          description: Successful response from AI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+              examples:
+                taskAdded:
+                  summary: Task created response
+                  value:
+                    message: "I've added 'Buy groceries tomorrow' to your tasks!"
+                    conversation_id: "0192f8e4-5c6b-7d8e-9f0a-1b2c3d4e5f6a"
+                    message_id: "0192f8e4-5c6b-7d8e-9f0a-1b2c3d4e5f6b"
+                    tool_calls:
+                      - tool: "add_task"
+                        success: true
+                        result:
+                          task_id: "0192f8e4-5c6b-7d8e-9f0a-1b2c3d4e5f6c"
+                          title: "Buy groceries tomorrow"
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyMessage:
+                  value:
+                    error: "validation_error"
+                    message: "Message cannot be empty"
+                    code: "EMPTY_MESSAGE"
+        '401':
+          description: Unauthorized - invalid or missing JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - user_id mismatch with JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AI service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                aiUnavailable:
+                  value:
+                    error: "service_unavailable"
+                    message: "AI service is temporarily unavailable. Please try again."
+                    code: "AI_SERVICE_ERROR"
+      security:
+        - bearerAuth: []
+
+  /{user_id}/chat/history:
+    get:
+      operationId: getChatHistory
+      summary: Get conversation history
+      description: Returns the user's conversation history for display on page load
+      tags:
+        - Chat
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of messages to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: before
+          in: query
+          required: false
+          description: Return messages before this message ID (for pagination)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Conversation history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatHistoryResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from better-auth
+
+  schemas:
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: User's chat message
+          example: "Add a task to buy groceries"
+
+    ChatResponse:
+      type: object
+      required:
+        - message
+        - conversation_id
+        - message_id
+      properties:
+        message:
+          type: string
+          description: AI assistant's response message
+          example: "I've added 'Buy groceries' to your tasks!"
+        conversation_id:
+          type: string
+          format: uuid
+          description: Conversation identifier
+        message_id:
+          type: string
+          format: uuid
+          description: The assistant message's identifier
+        tool_calls:
+          type: array
+          description: List of MCP tools that were invoked
+          items:
+            $ref: '#/components/schemas/ToolCallResult'
+
+    ToolCallResult:
+      type: object
+      required:
+        - tool
+        - success
+      properties:
+        tool:
+          type: string
+          enum:
+            - add_task
+            - list_tasks
+            - complete_task
+            - delete_task
+            - update_task
+          description: Name of the MCP tool that was called
+        success:
+          type: boolean
+          description: Whether the tool call succeeded
+        result:
+          type: object
+          description: Tool-specific result data
+          additionalProperties: true
+        error:
+          type: string
+          description: Error message if tool call failed
+
+    ChatHistoryResponse:
+      type: object
+      required:
+        - messages
+        - conversation_id
+      properties:
+        conversation_id:
+          type: string
+          format: uuid
+          description: Conversation identifier
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryMessage'
+        has_more:
+          type: boolean
+          description: Whether there are more messages before these
+
+    HistoryMessage:
+      type: object
+      required:
+        - id
+        - role
+        - content
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type identifier
+          example: "validation_error"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Message cannot be empty"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "EMPTY_MESSAGE"

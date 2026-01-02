@@ -1,0 +1,519 @@
+openapi: 3.1.0
+info:
+  title: TodoList Pro - Frontend Integration API
+  description: |
+    API contracts for frontend-backend integration.
+    This schema documents both the FastAPI backend endpoints and
+    Better-Auth authentication endpoints used by the Next.js frontend.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: FastAPI Backend (Development)
+  - url: http://localhost:3000/api/auth
+    description: Better-Auth (Development)
+
+tags:
+  - name: Authentication
+    description: Better-Auth authentication endpoints
+  - name: Tasks
+    description: Task CRUD operations (FastAPI)
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  # ============================================
+  # BETTER-AUTH ENDPOINTS (Frontend /api/auth/*)
+  # ============================================
+
+  /api/auth/sign-up/email:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      description: Create a new user account with email and password
+      operationId: signUpEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+      responses:
+        '200':
+          description: Registration successful
+          headers:
+            set-auth-token:
+              description: Bearer token for API authentication
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /api/auth/sign-in/email:
+    post:
+      tags: [Authentication]
+      summary: Login with email
+      description: Authenticate user with email and password
+      operationId: signInEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            set-auth-token:
+              description: Bearer token for API authentication
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /api/auth/sign-out:
+    post:
+      tags: [Authentication]
+      summary: Logout
+      description: End the current session
+      operationId: signOut
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+        '401':
+          description: Not authenticated
+
+  /api/auth/session:
+    get:
+      tags: [Authentication]
+      summary: Get current session
+      description: Retrieve the current user session
+      operationId: getSession
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Session found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401':
+          description: No valid session
+
+  # ============================================
+  # FASTAPI BACKEND ENDPOINTS
+  # ============================================
+
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: List all tasks
+      description: Get all tasks for the authenticated user
+      operationId: listTasks
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Task list retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Tasks]
+      summary: Create task
+      description: Create a new task for the authenticated user
+      operationId: createTask
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /tasks/{taskId}:
+    parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Task UUID
+
+    get:
+      tags: [Tasks]
+      summary: Get task
+      description: Get a specific task by ID
+      operationId: getTask
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Task found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Tasks]
+      summary: Update task (full)
+      description: Replace all task fields
+      operationId: updateTask
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    patch:
+      tags: [Tasks]
+      summary: Update task (partial)
+      description: Update specific task fields
+      operationId: patchTask
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatch'
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags: [Tasks]
+      summary: Delete task
+      description: Permanently delete a task
+      operationId: deleteTask
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Task deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Check API and database health
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Better-Auth sign-in
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: better-auth.session_token
+      description: Session cookie set by Better-Auth
+
+  schemas:
+    # Authentication Schemas
+    SignUpRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        password:
+          type: string
+          minLength: 8
+          example: SecurePass123
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: John Doe
+
+    SignInRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        password:
+          type: string
+          example: SecurePass123
+        rememberMe:
+          type: boolean
+          default: false
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        session:
+          $ref: '#/components/schemas/Session'
+
+    SessionResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        session:
+          $ref: '#/components/schemas/Session'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        image:
+          type: string
+          nullable: true
+        emailVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    AuthError:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+
+    # Task Schemas
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        completed:
+          type: boolean
+        order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    TaskCreate:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: Buy groceries
+
+    TaskUpdate:
+      type: object
+      required: [text, completed]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        completed:
+          type: boolean
+
+    TaskPatch:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        completed:
+          type: boolean
+
+    TaskListResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        count:
+          type: integer
+
+    # Health Schema
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        database:
+          type: string
+          enum: [connected, disconnected]
+        version:
+          type: string
+
+    # Error Schemas
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: Authentication required
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: Task not found
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'

@@ -1,0 +1,244 @@
+# MCP Tool Definitions for Todo AI Chatbot
+# These tools are exposed to the AI agent for task operations
+
+version: "1.0"
+tools:
+  - name: add_task
+    description: |
+      Add a new task for the user. Use this when the user wants to create, add,
+      or remember something as a task. Examples: "Add a task to...", "Remind me to...",
+      "I need to...", "Don't let me forget..."
+    parameters:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: The user's ID (required for all operations)
+        title:
+          type: string
+          description: The task title/main text (required)
+          maxLength: 500
+        description:
+          type: string
+          description: Optional detailed description of the task
+          maxLength: 2000
+      required:
+        - user_id
+        - title
+    returns:
+      type: object
+      properties:
+        success:
+          type: boolean
+        task:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            description:
+              type: string
+            completed:
+              type: boolean
+            created_at:
+              type: string
+              format: date-time
+        error:
+          type: string
+
+  - name: list_tasks
+    description: |
+      List all tasks for the user. Use this when the user wants to see their tasks,
+      review what they need to do, or check their todo list. Examples: "Show my tasks",
+      "What do I need to do?", "List my todos", "What's on my list?"
+    parameters:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: The user's ID (required for all operations)
+        include_completed:
+          type: boolean
+          description: Whether to include completed tasks (default true)
+          default: true
+        limit:
+          type: integer
+          description: Maximum number of tasks to return (default 50)
+          default: 50
+          maximum: 100
+      required:
+        - user_id
+    returns:
+      type: object
+      properties:
+        success:
+          type: boolean
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              title:
+                type: string
+              description:
+                type: string
+              completed:
+                type: boolean
+              created_at:
+                type: string
+                format: date-time
+        total_count:
+          type: integer
+        completed_count:
+          type: integer
+        pending_count:
+          type: integer
+        error:
+          type: string
+
+  - name: complete_task
+    description: |
+      Mark a task as completed. Use this when the user indicates they've finished,
+      done, or completed a task. Examples: "Mark X as done", "I finished X",
+      "Complete the X task", "X is done"
+    parameters:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: The user's ID (required for all operations)
+        task_id:
+          type: string
+          format: uuid
+          description: The task ID to complete (if known)
+        task_title:
+          type: string
+          description: |
+            The task title to search for (used if task_id not provided).
+            Will find the best matching task by title.
+      required:
+        - user_id
+    returns:
+      type: object
+      properties:
+        success:
+          type: boolean
+        task:
+          type: object
+          description: The completed task
+        error:
+          type: string
+        suggestion:
+          type: string
+          description: |
+            If multiple tasks match, this contains a clarification request.
+            Example: "I found multiple tasks matching 'report'. Did you mean..."
+
+  - name: update_task
+    description: |
+      Update an existing task's title or description. Use this when the user wants
+      to change, rename, or modify a task. Examples: "Change X to Y", "Update the X task",
+      "Rename X to Y", "Add description to X"
+    parameters:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: The user's ID (required for all operations)
+        task_id:
+          type: string
+          format: uuid
+          description: The task ID to update (if known)
+        task_title:
+          type: string
+          description: The task title to search for (used if task_id not provided)
+        new_title:
+          type: string
+          description: New title for the task (optional)
+          maxLength: 500
+        new_description:
+          type: string
+          description: New description for the task (optional)
+          maxLength: 2000
+      required:
+        - user_id
+    returns:
+      type: object
+      properties:
+        success:
+          type: boolean
+        task:
+          type: object
+          description: The updated task
+        error:
+          type: string
+        suggestion:
+          type: string
+
+  - name: delete_task
+    description: |
+      Delete a task. Use this when the user wants to remove, delete, or get rid of
+      a task. Examples: "Delete X", "Remove the X task", "Get rid of X"
+    parameters:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: The user's ID (required for all operations)
+        task_id:
+          type: string
+          format: uuid
+          description: The task ID to delete (if known)
+        task_title:
+          type: string
+          description: The task title to search for (used if task_id not provided)
+      required:
+        - user_id
+    returns:
+      type: object
+      properties:
+        success:
+          type: boolean
+        deleted_task:
+          type: object
+          description: The deleted task info (for confirmation)
+        error:
+          type: string
+        suggestion:
+          type: string
+
+# Tool Selection Guidelines for AI Agent
+agent_instructions: |
+  When processing user messages, follow these guidelines for tool selection:
+
+  1. INTENT DETECTION:
+     - Look for action keywords: add/create/remind → add_task
+     - Look for query keywords: show/list/what/tasks → list_tasks
+     - Look for completion keywords: done/finished/complete/mark → complete_task
+     - Look for modification keywords: change/update/rename/edit → update_task
+     - Look for deletion keywords: delete/remove/get rid → delete_task
+
+  2. PARAMETER EXTRACTION:
+     - Always include user_id from the request context
+     - Extract task title from the user's description
+     - For ambiguous references, use task_title parameter to search
+
+  3. HANDLING AMBIGUITY:
+     - If multiple tasks might match, call the tool and let it return suggestions
+     - Present the suggestions to the user and ask for clarification
+     - Never guess which task the user meant
+
+  4. CONFIRMATION:
+     - Always confirm the action taken in natural language
+     - Include relevant details (task title, status change, etc.)
+     - For deletions, confirm what was deleted
+
+  5. ERROR HANDLING:
+     - If a tool returns an error, explain it to the user
+     - Suggest alternative actions when appropriate
+     - Never expose technical error details to users

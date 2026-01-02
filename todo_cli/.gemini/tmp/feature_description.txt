@@ -1,1 +1,0 @@
-CLI-base TODO LIST in Python - User add todo item - User Delete todo item by the id number. - User update existing item by using the ID number (ID number is auto generated) - User toggle the status completed or Remaining. - User chack the todo list.
