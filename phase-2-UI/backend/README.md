@@ -1,3 +1,13 @@
+---
+title: TodoList Pro API
+emoji: ✅
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # TodoList Pro API
 
 FastAPI backend for TodoList Pro task management application.
