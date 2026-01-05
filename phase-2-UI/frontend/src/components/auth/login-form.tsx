@@ -64,7 +64,6 @@ export function LoginForm() {
         } else {
           setError(result.error.message || "Login failed. Please try again.");
         }
-        setIsSubmitting(false);
         return;
       }
 
@@ -77,12 +76,12 @@ export function LoginForm() {
       // Get callback URL or default to dashboard
       const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-      // Redirect to dashboard
-      router.push(callbackUrl);
-      router.refresh();
+      // Redirect to dashboard - use replace to prevent back button issues
+      router.replace(callbackUrl);
     } catch (err) {
       console.error("Login error:", err);
       setError("An unexpected error occurred. Please try again.");
+    } finally {
       setIsSubmitting(false);
     }
   };
