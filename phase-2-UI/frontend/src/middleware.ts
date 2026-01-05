@@ -1,32 +1,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Routes that require authentication
-const protectedRoutes = ["/dashboard"];
-
-// Routes that should redirect to dashboard if already authenticated
-const authRoutes = ["/login", "/register"];
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for Better-Auth session cookie
-  const sessionCookie = request.cookies.get("better-auth.session_token");
-  const isAuthenticated = !!sessionCookie?.value;
+  // Only protect dashboard routes
+  if (pathname.startsWith("/dashboard")) {
+    // Check for Better-Auth session cookie (try both possible cookie names)
+    const sessionCookie =
+      request.cookies.get("better-auth.session_token") ||
+      request.cookies.get("better-auth.session");
 
-  // Protect dashboard routes
-  if (protectedRoutes.some((route) => pathname.startsWith(route))) {
+    const isAuthenticated = !!sessionCookie?.value;
+
     if (!isAuthenticated) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
-  // Redirect authenticated users away from auth pages
-  if (authRoutes.some((route) => pathname.startsWith(route))) {
-    if (isAuthenticated) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(loginUrl, { status: 302 });
     }
   }
 
@@ -34,5 +24,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register"],
+  matcher: ["/dashboard/:path*"],
 };
