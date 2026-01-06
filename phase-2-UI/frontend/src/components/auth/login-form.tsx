@@ -76,9 +76,20 @@ export function LoginForm() {
       // Get callback URL or default to dashboard
       const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
+      // Decode the callback URL if it's encoded (e.g., %2Fdashboard -> /dashboard)
+      const decodedCallbackUrl = decodeURIComponent(callbackUrl);
+
+      // Ensure the callback URL is a valid path (starts with /)
+      const safeCallbackUrl = decodedCallbackUrl.startsWith("/")
+        ? decodedCallbackUrl
+        : "/dashboard";
+
+      // Small delay to ensure cookies are fully set before redirect
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Use hard redirect to ensure cookies are properly sent with the request
       // This is more reliable than client-side routing for auth flows
-      window.location.href = callbackUrl;
+      window.location.href = safeCallbackUrl;
     } catch (err) {
       console.error("Login error:", err);
       setError("An unexpected error occurred. Please try again.");
