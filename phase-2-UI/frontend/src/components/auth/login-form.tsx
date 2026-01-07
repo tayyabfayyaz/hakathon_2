@@ -67,14 +67,36 @@ export function LoginForm() {
         return;
       }
 
-      // Wait for cookies to be set, then verify session is established
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Wait for cookies to be set
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Debug: Check auth configuration and cookie status
+      try {
+        const debugRes = await fetch("/api/auth/debug", { credentials: "include" });
+        const debugData = await debugRes.json();
+        console.log("[Login Debug] Auth status:", debugData);
+
+        // Check for configuration warnings
+        if (debugData.warnings && debugData.warnings.length > 0) {
+          console.error("[Login Debug] Configuration warnings:", debugData.warnings);
+        }
+
+        // Verify the session cookie was set
+        if (!debugData.hasSessionCookie) {
+          console.error("[Login Debug] Session cookie not found after login!");
+          // Try fetching session anyway as a fallback check
+        }
+      } catch (debugErr) {
+        console.warn("[Login Debug] Could not fetch debug info:", debugErr);
+      }
 
       // Verify session is actually established before proceeding
       const sessionCheck = await getSession();
+      console.log("[Login] Session check result:", sessionCheck);
+
       if (!sessionCheck.data?.session) {
-        console.error("Session not established after login:", sessionCheck);
-        setError("Login succeeded but session was not established. Please try again.");
+        console.error("[Login] Session not established after login:", sessionCheck);
+        setError("Login succeeded but session was not established. This may be a server configuration issue.");
         return;
       }
 
@@ -82,6 +104,9 @@ export function LoginForm() {
       const token = await getBearerToken();
       if (token) {
         localStorage.setItem("bearer_token", token);
+        console.log("[Login] Bearer token saved to localStorage");
+      } else {
+        console.warn("[Login] No bearer token received");
       }
 
       // Get callback URL or default to dashboard
@@ -95,8 +120,9 @@ export function LoginForm() {
         ? decodedCallbackUrl
         : "/dashboard";
 
+      console.log("[Login] Redirecting to:", safeCallbackUrl);
+
       // Use hard redirect to ensure cookies are properly sent with the request
-      // This is more reliable than client-side routing for auth flows
       window.location.href = safeCallbackUrl;
     } catch (err) {
       console.error("Login error:", err);
