@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckSquare, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { loginSchema, type LoginInput } from "@/lib/validations";
-import { signIn, getBearerToken } from "@/lib/auth-client";
+import { signIn, getBearerToken, getSession } from "@/lib/auth-client";
 
 export function LoginForm() {
   const router = useRouter();
@@ -67,7 +67,18 @@ export function LoginForm() {
         return;
       }
 
-      // Fetch bearer token from Better-Auth
+      // Wait for cookies to be set, then verify session is established
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Verify session is actually established before proceeding
+      const sessionCheck = await getSession();
+      if (!sessionCheck.data?.session) {
+        console.error("Session not established after login:", sessionCheck);
+        setError("Login succeeded but session was not established. Please try again.");
+        return;
+      }
+
+      // Fetch bearer token from Better-Auth for backend API calls
       const token = await getBearerToken();
       if (token) {
         localStorage.setItem("bearer_token", token);
@@ -83,9 +94,6 @@ export function LoginForm() {
       const safeCallbackUrl = decodedCallbackUrl.startsWith("/")
         ? decodedCallbackUrl
         : "/dashboard";
-
-      // Small delay to ensure cookies are fully set before redirect
-      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Use hard redirect to ensure cookies are properly sent with the request
       // This is more reliable than client-side routing for auth flows

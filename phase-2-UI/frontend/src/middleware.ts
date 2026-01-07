@@ -6,13 +6,17 @@ export function middleware(request: NextRequest) {
 
   // Only protect dashboard routes
   if (pathname.startsWith("/dashboard")) {
-    // Check for Better-Auth session cookie (try all possible cookie names)
-    // The cookie name depends on the cookiePrefix setting in auth.ts
-    const sessionCookie =
-      request.cookies.get("better-auth.session_token") ||
-      request.cookies.get("better-auth.session") ||
-      request.cookies.get("__Secure-better-auth.session_token") ||
-      request.cookies.get("__Secure-better-auth.session");
+    // Check for Better-Auth session cookie
+    // Cookie name is "better-auth.session_token" (useSecureCookies is disabled for consistency)
+    const sessionCookie = request.cookies.get("better-auth.session_token");
+
+    // Debug logging for production (remove in future if not needed)
+    if (process.env.NODE_ENV === "production") {
+      const allCookies = request.cookies.getAll();
+      console.log("[Middleware] Checking auth for:", pathname);
+      console.log("[Middleware] All cookies:", allCookies.map(c => c.name));
+      console.log("[Middleware] Session cookie found:", !!sessionCookie?.value);
+    }
 
     const isAuthenticated = !!sessionCookie?.value;
 
