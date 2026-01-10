@@ -5,9 +5,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Menu, X, CheckSquare, LogOut, Loader2 } from "lucide-react";
+import { Menu, X, CheckSquare, LogOut, Loader2, MessageSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { signOut } from "@/lib/auth-client";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 interface NavbarProps {
   isAuthenticated?: boolean;
@@ -65,10 +66,17 @@ export function Navbar({ isAuthenticated = false, userName = "User" }: NavbarPro
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-4">
+          <ThemeToggle />
           {isAuthenticated ? (
             <>
               <Link href="/dashboard">
                 <Button variant="ghost">Dashboard</Button>
+              </Link>
+              <Link href="/chat">
+                <Button variant="ghost">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  AI Chat
+                </Button>
               </Link>
               <div className="flex items-center gap-3">
                 <Avatar className="h-8 w-8">
@@ -119,6 +127,11 @@ export function Navbar({ isAuthenticated = false, userName = "User" }: NavbarPro
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px] sm:w-[400px]">
             <nav className="flex flex-col gap-4 mt-8">
+              {/* Theme Toggle for Mobile */}
+              <div className="flex items-center justify-between pb-4 border-b">
+                <span className="text-sm font-medium">Theme</span>
+                <ThemeToggle showLabel />
+              </div>
               {isAuthenticated ? (
                 <>
                   <div className="flex items-center gap-3 pb-4 border-b">
@@ -135,6 +148,12 @@ export function Navbar({ isAuthenticated = false, userName = "User" }: NavbarPro
                   <Link href="/dashboard" onClick={() => setIsOpen(false)}>
                     <Button variant="ghost" className="w-full justify-start">
                       Dashboard
+                    </Button>
+                  </Link>
+                  <Link href="/chat" onClick={() => setIsOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start">
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      AI Chat
                     </Button>
                   </Link>
                   <Button

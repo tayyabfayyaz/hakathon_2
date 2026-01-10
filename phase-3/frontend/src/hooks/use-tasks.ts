@@ -40,6 +40,7 @@ export function useCreateTask() {
           id: `temp-${Date.now()}`,
           user_id: "",
           text: newTask.text,
+          description: null,
           completed: false,
           order: 0,
           created_at: new Date().toISOString(),

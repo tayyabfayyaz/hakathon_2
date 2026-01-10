@@ -62,6 +62,7 @@ export interface Task {
   id: string;
   user_id: string;
   text: string;
+  description: string | null;
   completed: boolean;
   order: number;
   created_at: string;
