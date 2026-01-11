@@ -10,8 +10,10 @@ const authRoutes = ["/login", "/register"];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for Better-Auth session cookie
-  const sessionCookie = request.cookies.get("better-auth.session_token");
+  // Check for Better-Auth session cookie (check both regular and secure prefixed versions)
+  const sessionCookie =
+    request.cookies.get("better-auth.session_token") ||
+    request.cookies.get("__Secure-better-auth.session_token");
   const isAuthenticated = !!sessionCookie?.value;
 
   // Protect dashboard routes

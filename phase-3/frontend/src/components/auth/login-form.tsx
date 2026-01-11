@@ -77,9 +77,8 @@ export function LoginForm() {
       // Get callback URL or default to dashboard
       const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-      // Redirect to dashboard
-      router.push(callbackUrl);
-      router.refresh();
+      // Use hard redirect to ensure cookies are properly recognized
+      window.location.href = callbackUrl;
     } catch (err) {
       console.error("Login error:", err);
       setError("An unexpected error occurred. Please try again.");
