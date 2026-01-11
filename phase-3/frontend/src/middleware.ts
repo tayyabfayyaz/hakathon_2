@@ -10,10 +10,20 @@ const authRoutes = ["/login", "/register"];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for Better-Auth session cookie (check both regular and secure prefixed versions)
+  // Debug: Log all cookies
+  const allCookies = request.cookies.getAll();
+  console.log("[Middleware] Path:", pathname);
+  console.log("[Middleware] All cookies:", allCookies.map(c => c.name));
+
+  // Check for Better-Auth session cookie (check all possible variants)
   const sessionCookie =
     request.cookies.get("better-auth.session_token") ||
-    request.cookies.get("__Secure-better-auth.session_token");
+    request.cookies.get("__Secure-better-auth.session_token") ||
+    request.cookies.get("better-auth.session_token.0") ||
+    request.cookies.get("__Secure-better-auth.session_token.0");
+
+  console.log("[Middleware] Session cookie found:", sessionCookie?.name || "None");
+
   const isAuthenticated = !!sessionCookie?.value;
 
   // Protect dashboard routes

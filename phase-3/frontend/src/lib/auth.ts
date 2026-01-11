@@ -10,6 +10,8 @@ const pool = new Pool({
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   trustedOrigins: [
+    "https://todoproweb.vercel.app",
+    "https://fayyaztayyab684-todolist-pro-api.hf.space",
     process.env.BETTER_AUTH_URL,
     process.env.NEXT_PUBLIC_API_URL,
     "http://localhost:3000",
@@ -26,8 +28,11 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // Update every 24 hours
   },
   advanced: {
-    useSecureCookies: process.env.NODE_ENV === "production",
+    useSecureCookies: false, // Disable __Secure- prefix to fix Vercel cookie issues
     cookiePrefix: "better-auth",
+    crossSubDomainCookies: {
+      enabled: false,
+    },
   },
 });
 

@@ -48,13 +48,18 @@ export function LoginForm() {
     setError(null);
 
     try {
+      console.log("[Login] Attempting sign in for:", data.email);
+
       const result = await signIn.email({
         email: data.email,
         password: data.password,
         rememberMe: data.rememberMe,
       });
 
+      console.log("[Login] Sign in result:", JSON.stringify(result, null, 2));
+
       if (result.error) {
+        console.error("[Login] Sign in error:", result.error);
         // Handle specific error cases
         if (result.error.message?.toLowerCase().includes("invalid") ||
             result.error.message?.toLowerCase().includes("credentials")) {
@@ -68,14 +73,25 @@ export function LoginForm() {
         return;
       }
 
+      console.log("[Login] Sign in successful, fetching bearer token...");
+
+      // Small delay to ensure cookies are set
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Log cookies for debugging
+      console.log("[Login] Document cookies:", document.cookie);
+
       // Fetch bearer token from Better-Auth
       const token = await getBearerToken();
+      console.log("[Login] Bearer token received:", token ? "Yes" : "No");
+
       if (token) {
         localStorage.setItem("bearer_token", token);
       }
 
       // Get callback URL or default to dashboard
       const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+      console.log("[Login] Redirecting to:", callbackUrl);
 
       // Use hard redirect to ensure cookies are properly recognized
       window.location.href = callbackUrl;
