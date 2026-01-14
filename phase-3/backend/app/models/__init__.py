@@ -1,5 +1,7 @@
 """SQLModel database models."""
 
 from app.models.task import Task, TaskBase
+from app.models.conversation import Conversation
+from app.models.message import Message, MessageRole
 
-__all__ = ["Task", "TaskBase"]
+__all__ = ["Task", "TaskBase", "Conversation", "Message", "MessageRole"]

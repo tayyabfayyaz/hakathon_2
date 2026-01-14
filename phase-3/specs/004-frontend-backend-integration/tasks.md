@@ -190,16 +190,37 @@
 
 ---
 
-## Phase 11: Polish & Cross-Cutting Concerns
+## Phase 11: User Story 9 - Theme Toggle (Priority: P2)
+
+**Goal**: Enable users to switch between light and dark themes with the default being dark theme
+
+**Independent Test**: Toggle theme button in navbar, verify theme changes immediately and persists after refresh
+
+### Implementation for User Story 9
+
+- [X] T055 [P] [US9] Create ThemeProvider context with localStorage persistence in frontend/src/components/providers/theme-provider.tsx
+- [X] T056 [P] [US9] Create useTheme hook for accessing theme state in frontend/src/hooks/use-theme.ts
+- [X] T057 [US9] Create ThemeToggle button component with sun/moon icons in frontend/src/components/layout/theme-toggle.tsx
+- [X] T058 [US9] Update RootLayout to wrap app with ThemeProvider (default: dark) in frontend/src/app/layout.tsx
+- [X] T059 [US9] Add ThemeToggle button to desktop Navbar in frontend/src/components/layout/navbar.tsx
+- [X] T060 [US9] Add ThemeToggle button to mobile nav Sheet in frontend/src/components/layout/navbar.tsx
+- [X] T061 [US9] Add theme class toggle on document root (html element) in frontend/src/components/providers/theme-provider.tsx
+- [X] T062 [US9] Add system preference detection with prefers-color-scheme in frontend/src/components/providers/theme-provider.tsx
+
+**Checkpoint**: User Story 9 complete - users can toggle between light/dark themes
+
+---
+
+## Phase 12: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [X] T049 [P] Add global error boundary for API errors in todolist-pro/src/app/error.tsx
-- [X] T050 [P] Add session expiry handling (redirect to login with message) in todolist-pro/src/lib/api.ts
-- [X] T051 [P] Add loading indicator component for API operations in todolist-pro/src/components/ui/loading.tsx
-- [X] T052 Update task counts (total, completed, remaining) to use real data in todolist-pro/src/app/(dashboard)/dashboard/page.tsx
-- [X] T053 Remove mock-data.ts and unused mock imports in todolist-pro/src/lib/mock-data.ts
-- [X] T054 Run quickstart.md verification checklist
+- [X] T063 [P] Add global error boundary for API errors in todolist-pro/src/app/error.tsx
+- [X] T064 [P] Add session expiry handling (redirect to login with message) in todolist-pro/src/lib/api.ts
+- [X] T065 [P] Add loading indicator component for API operations in todolist-pro/src/components/ui/loading.tsx
+- [X] T066 Update task counts (total, completed, remaining) to use real data in todolist-pro/src/app/(dashboard)/dashboard/page.tsx
+- [X] T067 Remove mock-data.ts and unused mock imports in todolist-pro/src/lib/mock-data.ts
+- [X] T068 Run quickstart.md verification checklist
 
 ---
 
@@ -210,8 +231,8 @@
 ```
 Phase 1: Setup
     └── Phase 2: Foundational (BLOCKS all user stories)
-            └── Phase 3-10: User Stories (can run in priority order)
-                    └── Phase 11: Polish
+            └── Phase 3-11: User Stories (can run in priority order)
+                    └── Phase 12: Polish
 ```
 
 ### User Story Dependencies
@@ -226,6 +247,7 @@ Phase 1: Setup
 | US6: Edit Task | P2 | US4 (need tasks to edit) | US4 complete |
 | US7: Delete Task | P2 | US4 (need tasks to delete) | US4 complete |
 | US8: Logout | P3 | US2 (need to be logged in) | US2 complete |
+| US9: Theme Toggle | P2 | Phase 2 (foundational only) | Phase 2 complete |
 
 ### Within Each User Story
 
@@ -241,9 +263,10 @@ Phase 1: Setup
 **Foundational Phase (T007-T012)**:
 - T009, T010 can run in parallel (different files)
 
-**User Stories (T013-T048)**:
+**User Stories (T013-T062)**:
 - US5, US6, US7 can run in parallel (after US4, different mutations)
 - US8 can run in parallel with US5-US7 (only needs US2)
+- US9 can run in parallel with any user story (only needs Phase 2)
 
 ---
 
@@ -290,12 +313,12 @@ Task: "T040 [US7] Implement useDeleteTask..."
 
 | Metric | Count |
 |--------|-------|
-| **Total Tasks** | 54 |
+| **Total Tasks** | 68 |
 | **Setup Tasks** | 6 |
 | **Foundational Tasks** | 6 |
-| **User Story Tasks** | 36 |
+| **User Story Tasks** | 44 |
 | **Polish Tasks** | 6 |
-| **Parallel Opportunities** | 12 tasks marked [P] |
+| **Parallel Opportunities** | 14 tasks marked [P] |
 
 | User Story | Task Count | Priority |
 |------------|------------|----------|
@@ -307,5 +330,8 @@ Task: "T040 [US7] Implement useDeleteTask..."
 | US6: Edit Task | 4 | P2 |
 | US7: Delete Task | 4 | P2 |
 | US8: Logout | 5 | P3 |
+| US9: Theme Toggle | 8 | P2 |
 
 **Suggested MVP Scope**: User Stories 1-4 (Registration, Login, Create Task, View Tasks) = 19 tasks + 12 setup/foundational = **31 tasks for MVP**
+
+**Theme Toggle Feature**: US9 can be implemented independently as it only requires the foundational phase. It adds 8 tasks for dark/light theme switching with localStorage persistence.

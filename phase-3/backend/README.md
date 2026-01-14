@@ -1,6 +1,17 @@
+---
+title: TodoList Pro API
+emoji: ✅
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+license: mit
+app_port: 7860
+---
+
 # TodoList Pro API
 
-FastAPI backend for TodoList Pro task management application.
+FastAPI backend for TodoList Pro task management application with AI-powered chatbot.
 
 ## Tech Stack
 

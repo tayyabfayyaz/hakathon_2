@@ -9,6 +9,14 @@ from app.schemas.task import (
 )
 from app.schemas.error import ErrorResponse
 from app.schemas.health import HealthResponse
+from app.schemas.chat import (
+    ChatRequest,
+    ChatResponse,
+    ToolCallResult,
+    HistoryMessage,
+    ChatHistoryResponse,
+    ChatErrorResponse,
+)
 
 __all__ = [
     "TaskCreate",
@@ -18,4 +26,10 @@ __all__ = [
     "TaskListResponse",
     "ErrorResponse",
     "HealthResponse",
+    "ChatRequest",
+    "ChatResponse",
+    "ToolCallResult",
+    "HistoryMessage",
+    "ChatHistoryResponse",
+    "ChatErrorResponse",
 ]

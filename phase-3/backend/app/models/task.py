@@ -19,7 +19,12 @@ class TaskBase(SQLModel):
     text: str = Field(
         min_length=1,
         max_length=500,
-        description="Task description text"
+        description="Task title/description text"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        max_length=2000,
+        description="Optional detailed description of the task"
     )
     completed: bool = Field(
         default=False,

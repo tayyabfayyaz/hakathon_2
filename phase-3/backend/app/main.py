@@ -10,7 +10,8 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.database import init_db, close_db
-from app.api.routes import tasks, health
+from app.api.routes import tasks, health, chat
+from app.mcp import get_mcp_server
 
 # Configure logging
 logging.basicConfig(
@@ -29,7 +30,13 @@ async def lifespan(app: FastAPI):
     logger.info("Starting TodoList Pro API...")
     await init_db()
     logger.info("Database initialized")
+
+    # Initialize MCP server (Official SDK)
+    mcp_server = get_mcp_server()
+    logger.info(f"MCP Server initialized: {mcp_server.name}")
+
     yield
+
     # Shutdown
     logger.info("Shutting down TodoList Pro API...")
     await close_db()
@@ -79,6 +86,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Register routers
 app.include_router(tasks.router)
 app.include_router(health.router)
+app.include_router(chat.router)  # Phase-3: AI Chat endpoints
 
 
 @app.get("/")

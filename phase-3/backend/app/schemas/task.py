@@ -13,8 +13,13 @@ class TaskCreate(BaseModel):
     text: str = Field(
         min_length=1,
         max_length=500,
-        description="Task description text",
+        description="Task title text",
         examples=["Buy groceries", "Complete project report"]
+    )
+    description: Optional[str] = Field(
+        default=None,
+        max_length=2000,
+        description="Optional detailed description of the task"
     )
 
 
@@ -24,7 +29,12 @@ class TaskUpdate(BaseModel):
     text: str = Field(
         min_length=1,
         max_length=500,
-        description="Task description text"
+        description="Task title text"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        max_length=2000,
+        description="Optional detailed description of the task"
     )
     completed: bool = Field(
         description="Whether the task is completed"
@@ -38,7 +48,12 @@ class TaskPatch(BaseModel):
         default=None,
         min_length=1,
         max_length=500,
-        description="Task description text"
+        description="Task title text"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        max_length=2000,
+        description="Optional detailed description of the task"
     )
     completed: Optional[bool] = Field(
         default=None,
@@ -51,6 +66,7 @@ class TaskResponse(BaseModel):
 
     id: UUID
     text: str
+    description: Optional[str] = None
     completed: bool
     created_at: datetime
     updated_at: datetime

@@ -7,7 +7,55 @@
 
 ## Summary
 
-Build a RESTful API for task management using FastAPI with Python 3.11+, SQLModel ORM, and Neon Serverless PostgreSQL. The API provides CRUD operations for tasks, authenticated via Better-Auth JWT Bearer tokens. User isolation ensures each user can only access their own tasks.
+Build a RESTful API for task management using FastAPI with Python 3.11+, SQLModel ORM, and Neon Serverless PostgreSQL. The API provides CRUD operations for tasks, authenticated via Better-Auth JWT Bearer tokens. **User isolation is a core feature** - each user has a completely separate and isolated account where they can only see and manage their own tasks.
+
+---
+
+## User Isolation Feature (Multi-Tenant Architecture)
+
+### Overview
+
+Every user operates in complete isolation. User_1 cannot see, access, or modify User_2's tasks under any circumstances. This is enforced at multiple layers:
+
+### Implementation Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Request Flow                              │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Request arrives with JWT Bearer token                        │
+│  2. Token validated → user_id extracted from 'sub' claim         │
+│  3. ALL database queries filter by user_id                       │
+│  4. Response contains ONLY that user's data                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Isolation Enforcement Points
+
+| Layer | Mechanism | File Location |
+|-------|-----------|---------------|
+| **Authentication** | JWT token validation extracts user_id | `app/api/deps.py:get_current_user()` |
+| **Database Model** | `user_id` field indexed on Task table | `app/models/task.py:45-47` |
+| **Query Filtering** | All queries include `WHERE user_id = ?` | `app/api/routes/tasks.py` |
+| **404 Response** | Tasks not owned return 404 (not 403) | `app/api/routes/tasks.py` |
+
+### Security Guarantees
+
+1. **No Cross-User Data Leakage**: Queries always filter by authenticated user_id
+2. **Information Hiding**: Accessing another user's task returns 404, not 403 (prevents enumeration)
+3. **Token-Bound Identity**: User ID comes from validated JWT, not request parameters
+4. **Index Optimization**: `user_id` is indexed for efficient per-user queries
+
+### Verification Checklist
+
+- [ ] All `/tasks` endpoints require authentication
+- [ ] `user_id` is extracted from JWT token (not URL or body)
+- [ ] CREATE: New tasks set `user_id` from current user
+- [ ] READ (list): Query filters `WHERE user_id = current_user.id`
+- [ ] READ (single): Query filters by both `id` AND `user_id`
+- [ ] UPDATE: Query filters by both `id` AND `user_id`
+- [ ] DELETE: Query filters by both `id` AND `user_id`
+- [ ] 404 returned for tasks belonging to other users
 
 ---
 
@@ -126,32 +174,98 @@ See [research.md](./research.md) for detailed analysis.
 ### Phase 2: Core Infrastructure
 - Implement config module (pydantic-settings)
 - Set up async database connection
-- Create Task model (SQLModel)
+- Create Task model (SQLModel) with `user_id` field (indexed)
 - Run initial migration
 
-### Phase 3: Authentication
+### Phase 3: Authentication & User Isolation
 - Implement JWT token validation
-- Create `get_current_user` dependency
+- Create `get_current_user` dependency that extracts `user_id` from token
 - Handle auth errors (401 responses)
+- **CRITICAL**: Ensure user_id is NEVER accepted from request body/params
 
-### Phase 4: CRUD Endpoints
-- POST /tasks - Create task
-- GET /tasks - List user's tasks
-- GET /tasks/{id} - Get single task
-- PUT /tasks/{id} - Full update
-- PATCH /tasks/{id} - Partial update
-- DELETE /tasks/{id} - Remove task
+### Phase 4: CRUD Endpoints (with User Isolation)
+- POST /tasks - Create task (set `user_id` from JWT)
+- GET /tasks - List user's tasks (filter by `user_id`)
+- GET /tasks/{id} - Get single task (filter by `id` AND `user_id`)
+- PUT /tasks/{id} - Full update (filter by `id` AND `user_id`)
+- PATCH /tasks/{id} - Partial update (filter by `id` AND `user_id`)
+- DELETE /tasks/{id} - Remove task (filter by `id` AND `user_id`)
+- **All queries MUST include `WHERE user_id = current_user.id`**
 
 ### Phase 5: Operations
 - GET /health - Health check with DB status
 - OpenAPI documentation (/docs)
 - Request logging with correlation IDs
 
-### Phase 6: Testing
+### Phase 6: Testing (including Isolation Tests)
 - Unit tests for models and schemas
 - Integration tests for endpoints
 - Auth tests (valid/invalid tokens)
+- **User isolation tests** (User A cannot see User B's tasks)
 - Edge case tests
+
+---
+
+## User Isolation Implementation Details
+
+### Task Creation (POST /tasks)
+```python
+# CORRECT: user_id from authenticated user
+task = Task(
+    text=task_data.text,
+    user_id=current_user.id,  # From JWT, not request
+    completed=False,
+)
+```
+
+### Task Listing (GET /tasks)
+```python
+# CORRECT: Filter by user_id
+statement = (
+    select(Task)
+    .where(Task.user_id == current_user.id)
+    .order_by(Task.created_at.desc())
+)
+```
+
+### Task Read/Update/Delete (GET/PUT/PATCH/DELETE /tasks/{id})
+```python
+# CORRECT: Filter by BOTH id AND user_id
+statement = select(Task).where(
+    Task.id == task_id,
+    Task.user_id == current_user.id,  # Critical for isolation
+)
+# If not found: return 404 (not 403)
+```
+
+### Test Cases for Isolation
+```python
+# Test: User A cannot see User B's task
+async def test_user_isolation():
+    # Create task as User A
+    task = create_task(user_id="user_a", text="User A's task")
+
+    # Try to access as User B - MUST return 404
+    response = await client.get(
+        f"/tasks/{task.id}",
+        headers={"Authorization": f"Bearer {user_b_token}"}
+    )
+    assert response.status_code == 404
+
+# Test: User A cannot list User B's tasks
+async def test_list_isolation():
+    # Create tasks for both users
+    create_task(user_id="user_a", text="A's task")
+    create_task(user_id="user_b", text="B's task")
+
+    # List as User A - MUST NOT include User B's task
+    response = await client.get(
+        "/tasks",
+        headers={"Authorization": f"Bearer {user_a_token}"}
+    )
+    tasks = response.json()["tasks"]
+    assert all(t["user_id"] == "user_a" for t in tasks)
+```
 
 ---
 
@@ -193,12 +307,27 @@ See [data-model.md](./data-model.md) for SQLModel definitions.
 
 ## Security Considerations
 
-1. **Authentication**: All /tasks endpoints require valid Better-Auth JWT
-2. **Authorization**: Users can only access their own tasks (user_id from JWT)
-3. **Information Hiding**: Return 404 (not 403) for other users' tasks
-4. **Input Validation**: Pydantic validates all request bodies
-5. **SQL Injection**: SQLModel/SQLAlchemy parameterizes all queries
-6. **CORS**: Restrict to frontend origins only
+### User Isolation (Critical)
+
+1. **Complete Account Separation**: Each user has isolated data space
+2. **JWT-Based Identity**: User ID extracted from validated token, never from request
+3. **Query-Level Enforcement**: Every database query filters by `user_id`
+4. **Information Hiding**: Return 404 (not 403) for other users' tasks to prevent enumeration
+
+### General Security
+
+5. **Authentication**: All /tasks endpoints require valid Better-Auth JWT
+6. **Authorization**: Users can only access their own tasks (user_id from JWT)
+7. **Input Validation**: Pydantic validates all request bodies
+8. **SQL Injection**: SQLModel/SQLAlchemy parameterizes all queries
+9. **CORS**: Restrict to frontend origins only
+
+### Chat Endpoint Isolation
+
+The chat endpoints (`/{user_id}/chat`) also enforce user isolation:
+- User ID in URL MUST match authenticated user's ID
+- Returns 403 Forbidden if user_id mismatch
+- Conversation history is per-user (isolated)
 
 ---
 

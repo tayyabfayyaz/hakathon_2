@@ -1,9 +1,20 @@
-# Tasks: Todo AI Chatbot (Phase-3)
+# Tasks: Todo AI Chatbot (Phase-3) - MCP SDK Implementation
 
 **Input**: Design documents from `/specs/005-todo-ai-chatbot/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
-**Generated**: 2026-01-02
+**Generated**: 2026-01-09
 **Branch**: `005-todo-ai-chatbot`
+
+## Overview
+
+This task list implements the AI chatbot using the **Official MCP SDK** instead of OpenAI function calling. The MCP server exposes stateless tools for task operations that integrate with the AI agent.
+
+### Key Changes from Previous Implementation
+- **Remove**: OpenAI function calling format in `backend/app/mcp/tools.py`
+- **Remove**: `TOOL_DEFINITIONS` OpenAI-style schema in `backend/app/services/agent.py`
+- **Add**: Official MCP SDK server implementation
+- **Add**: MCP client integration in agent service
+- **Tools**: add_task, update_task, list_tasks, complete_task_toggle, delete_task
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -19,184 +30,209 @@
 
 ---
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Setup & Cleanup (Remove OpenAI Function Calling)
 
-**Purpose**: Project initialization and dependency installation
+**Purpose**: Remove existing OpenAI function calling and prepare for MCP SDK implementation
 
-- [ ] T001 Add OpenAI SDK dependency to backend/requirements.txt (`openai>=1.0.0`)
-- [ ] T002 [P] Add MCP SDK dependency to backend/requirements.txt (`mcp>=1.0.0`)
-- [ ] T003 [P] Add ChatKit dependency to frontend/package.json (`@chatscope/chat-ui-kit-react`)
-- [ ] T004 [P] Add OPENAI_API_KEY to backend/.env.example
+### Cleanup Tasks
 
-**Checkpoint**: Dependencies installed and environment configured
+- [X] T001 Remove OpenAI-style TOOL_DEFINITIONS from backend/app/mcp/tools.py (lines 19-135)
+- [X] T002 [P] Remove OpenAI-style TOOL_DEFINITIONS from backend/app/services/agent.py (lines 53-167)
+- [X] T003 [P] Remove tool_choice="auto" from _call_gemini_with_retry in backend/app/services/agent.py
+- [X] T004 Update backend/requirements.txt to ensure mcp>=1.0.0 is properly configured for MCP SDK server
 
----
+### New Dependencies
 
-## Phase 2: Foundational (Blocking Prerequisites)
+- [X] T005 Add mcp[server]>=1.0.0 to backend/requirements.txt for MCP server capabilities
+- [X] T006 [P] Add httpx>=0.27.0 to backend/requirements.txt for MCP client HTTP transport
 
-**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
-
-### Database Models
-
-- [ ] T005 Create Conversation model in backend/app/models/conversation.py (id, user_id, created_at, updated_at with UNIQUE constraint on user_id)
-- [ ] T006 [P] Create MessageRole enum and Message model in backend/app/models/message.py (id, conversation_id, user_id, role, content, created_at)
-- [ ] T007 [P] Add description field (Optional[str], max 2000 chars) to Task model in backend/app/models/task.py
-- [ ] T008 Export Conversation and Message models in backend/app/models/__init__.py
-- [ ] T009 Generate Alembic migration for conversations, messages tables and tasks.description column
-
-### MCP Tools Infrastructure
-
-- [ ] T010 Create MCP module init in backend/app/mcp/__init__.py
-- [ ] T011 Create base tool structure with tool definitions schema in backend/app/mcp/tools.py
-
-### Chat Schemas
-
-- [ ] T012 Create ChatRequest, ChatResponse, ToolCallResult schemas in backend/app/schemas/chat.py
-- [ ] T013 [P] Create ChatHistoryResponse, HistoryMessage schemas in backend/app/schemas/chat.py
-- [ ] T014 [P] Create chat-specific ErrorResponse schemas in backend/app/schemas/chat.py
-
-**Checkpoint**: Foundation ready - user story implementation can now begin
+**Checkpoint**: OpenAI function calling removed, ready for MCP SDK implementation
 
 ---
 
-## Phase 3: User Story 1 - Send Message and Receive AI Response (Priority: P1)
+## Phase 2: MCP Server Implementation (Official SDK)
+
+**Purpose**: Build MCP server with official SDK exposing todo tools
+
+### MCP Server Core
+
+- [X] T007 Create MCP server module structure in backend/app/mcp/server.py with FastMCP initialization
+- [X] T008 Configure MCP server with name "todo-mcp-server" and version in backend/app/mcp/server.py
+- [X] T009 [P] Create tool result types (ToolResult dataclass) in backend/app/mcp/types.py
+
+### MCP Tool Implementations (5 tools)
+
+- [X] T010 Implement add_task MCP tool using @mcp.tool() decorator in backend/app/mcp/server.py (params: user_id, title, description optional; returns: success, task object)
+
+- [X] T011 [P] Implement list_tasks MCP tool using @mcp.tool() decorator in backend/app/mcp/server.py (params: user_id, include_completed bool, limit int; returns: success, tasks array, count)
+
+- [X] T012 [P] Implement update_task MCP tool using @mcp.tool() decorator in backend/app/mcp/server.py (params: user_id, task_id optional, task_title optional, new_title optional, new_description optional; returns: success, updated task)
+
+- [X] T013 [P] Implement complete_task_toggle MCP tool using @mcp.tool() decorator in backend/app/mcp/server.py (params: user_id, task_id optional, task_title optional; returns: success, task with toggled completed state)
+
+- [X] T014 [P] Implement delete_task MCP tool using @mcp.tool() decorator in backend/app/mcp/server.py (params: user_id, task_id optional, task_title optional; returns: success, deleted task message)
+
+### MCP Server Integration
+
+- [X] T015 Create database session factory for MCP tools in backend/app/mcp/server.py
+- [X] T016 Export MCP server instance in backend/app/mcp/__init__.py
+- [X] T017 Add MCP server startup to FastAPI lifespan in backend/app/main.py
+
+**Checkpoint**: MCP server running with 5 tools exposed via official SDK
+
+---
+
+## Phase 3: Agent Service Refactor (MCP Client Integration)
+
+**Purpose**: Refactor agent service to use MCP client for tool calls instead of OpenAI function calling
+
+### MCP Client Setup
+
+- [X] T018 Create MCP client wrapper in backend/app/services/mcp_client.py
+- [X] T019 Implement tool discovery (list available tools from MCP server) in backend/app/services/mcp_client.py
+- [X] T020 Implement tool execution method (call_tool) in backend/app/services/mcp_client.py
+
+### Agent Service Refactor
+
+- [X] T021 Remove tool calling loop from generate_response in backend/app/services/agent.py
+- [X] T022 Add MCP client initialization to AgentService.__init__ in backend/app/services/agent.py
+- [X] T023 Implement intent detection for tool routing in backend/app/services/agent.py
+- [X] T024 Implement tool result formatting for AI context in backend/app/services/agent.py
+- [X] T025 Update generate_response to use MCP tools via client in backend/app/services/agent.py
+- [X] T026 Update _demo_mode_response to use MCP client for fallback in backend/app/services/agent.py
+
+**Checkpoint**: Agent service uses MCP client to call tools from MCP server
+
+---
+
+## Phase 4: User Story 1 - Send Message and Receive AI Response (Priority: P1)
 
 **Goal**: Users can send natural language messages and receive intelligent AI responses with conversation persistence
 
 **Independent Test**: Send "Hello" message, verify AI responds with greeting within 5 seconds, refresh page and verify history loads
 
-### Implementation for User Story 1
+### Backend Implementation
 
-- [ ] T015 [US1] Implement get_or_create_conversation function in backend/app/mcp/tools.py
-- [ ] T016 [US1] Implement add_message function for storing messages in backend/app/mcp/tools.py
-- [ ] T017 [US1] Implement get_conversation_history function in backend/app/mcp/tools.py
-- [ ] T018 [US1] Create OpenAI agent service with client initialization in backend/app/services/agent.py
-- [ ] T019 [US1] Implement conversation context builder from message history in backend/app/services/agent.py
-- [ ] T020 [US1] Implement generate_response function with OpenAI chat completion in backend/app/services/agent.py
-- [ ] T021 [US1] Create POST /{user_id}/chat endpoint in backend/app/api/routes/chat.py
-- [ ] T022 [US1] Create GET /{user_id}/chat/history endpoint in backend/app/api/routes/chat.py
-- [ ] T023 [US1] Add JWT validation and user_id verification to chat routes in backend/app/api/routes/chat.py
-- [ ] T024 [US1] Register chat router in backend/app/main.py
-- [ ] T025 [US1] Create chat-api.ts client with sendMessage function in frontend/src/lib/chat-api.ts
-- [ ] T026 [P] [US1] Create getHistory function in frontend/src/lib/chat-api.ts
-- [ ] T027 [US1] Create useChat hook for state management in frontend/src/hooks/use-chat.ts
-- [ ] T028 [P] [US1] Create TypingIndicator component in frontend/src/components/chat/typing-indicator.tsx
-- [ ] T029 [P] [US1] Create MessageList component with ChatKit in frontend/src/components/chat/message-list.tsx
-- [ ] T030 [P] [US1] Create MessageInput component in frontend/src/components/chat/message-input.tsx
-- [ ] T031 [US1] Create ChatContainer component wrapping MessageList, MessageInput, TypingIndicator in frontend/src/components/chat/chat-container.tsx
-- [ ] T032 [US1] Create chat page at frontend/src/app/(dashboard)/chat/page.tsx
-- [ ] T033 [US1] Add navigation link to chat from dashboard navbar in frontend/src/components/layout/navbar.tsx
+- [X] T027 [US1] Verify conversation persistence functions work in backend/app/mcp/tools.py (get_or_create_conversation, add_message, get_conversation_history)
+- [X] T028 [US1] Update POST /{user_id}/chat endpoint to use MCP-based agent in backend/app/api/routes/chat.py
+- [X] T029 [US1] Update GET /{user_id}/chat/history endpoint response format in backend/app/api/routes/chat.py
 
-**Checkpoint**: User Story 1 fully functional - basic chat with AI response works
+### Frontend Implementation (ChatKit UI)
+
+- [X] T030 [P] [US1] Verify ChatKit TypingIndicator component in frontend/src/components/chat/typing-indicator.tsx
+- [X] T031 [P] [US1] Verify ChatKit MessageList component in frontend/src/components/chat/message-list.tsx
+- [X] T032 [P] [US1] Verify ChatKit MessageInput component in frontend/src/components/chat/message-input.tsx
+- [X] T033 [US1] Verify ChatContainer integration in frontend/src/components/chat/chat-container.tsx
+- [X] T034 [US1] Verify chat page at frontend/src/app/(dashboard)/chat/page.tsx
+- [X] T035 [US1] Verify useChat hook state management in frontend/src/hooks/use-chat.ts
+
+**Checkpoint**: User Story 1 fully functional - basic chat with AI response works via MCP
 
 ---
 
-## Phase 4: User Story 2 - Add Task via Natural Language (Priority: P1)
+## Phase 5: User Story 2 - Add Task via Natural Language (Priority: P1)
 
 **Goal**: Users can add tasks by describing them naturally (e.g., "Add a task to buy groceries")
 
 **Independent Test**: Say "Add a task to buy groceries", verify task appears in task list
 
-### Implementation for User Story 2
+### Implementation
 
-- [ ] T034 [US2] Implement add_task MCP tool function in backend/app/mcp/tools.py (user_id, title, description params)
-- [ ] T035 [US2] Add add_task to OpenAI tool definitions in backend/app/services/agent.py
-- [ ] T036 [US2] Implement tool calling loop for add_task in backend/app/services/agent.py
-- [ ] T037 [US2] Add tool_calls field to ChatResponse in chat endpoint in backend/app/api/routes/chat.py
+- [X] T036 [US2] Test add_task MCP tool integration via chat endpoint
+- [X] T037 [US2] Verify intent detection routes "add/create/remind" keywords to add_task tool in backend/app/services/agent.py
+- [X] T038 [US2] Verify AI confirmation message after task creation
 
-**Checkpoint**: User Story 2 functional - can add tasks through conversation
+**Checkpoint**: User Story 2 functional - can add tasks through conversation via MCP
 
 ---
 
-## Phase 5: User Story 3 - List and View Tasks (Priority: P1)
+## Phase 6: User Story 3 - List and View Tasks (Priority: P1)
 
 **Goal**: Users can ask the chatbot to show their tasks (e.g., "What are my tasks?")
 
 **Independent Test**: Ask "Show my tasks", verify AI returns formatted list of tasks
 
-### Implementation for User Story 3
+### Implementation
 
-- [ ] T038 [US3] Implement list_tasks MCP tool function in backend/app/mcp/tools.py (user_id, include_completed, limit params)
-- [ ] T039 [US3] Add list_tasks to OpenAI tool definitions in backend/app/services/agent.py
-- [ ] T040 [US3] Implement tool calling for list_tasks in agent response generation in backend/app/services/agent.py
+- [X] T039 [US3] Test list_tasks MCP tool integration via chat endpoint
+- [X] T040 [US3] Verify intent detection routes "show/list/what tasks" keywords to list_tasks tool in backend/app/services/agent.py
+- [X] T041 [US3] Verify AI formats task list in readable response
 
-**Checkpoint**: User Story 3 functional - can view tasks through conversation
-
----
-
-## Phase 6: User Story 4 - Complete Task via Natural Language (Priority: P2)
-
-**Goal**: Users can mark tasks complete by telling the chatbot (e.g., "I finished buying groceries")
-
-**Independent Test**: Say "Mark buy groceries as done", verify task status updates to completed
-
-### Implementation for User Story 4
-
-- [ ] T041 [US4] Implement complete_task MCP tool function in backend/app/mcp/tools.py (user_id, task_id or task_title params)
-- [ ] T042 [US4] Implement task title matching logic for ambiguous references in backend/app/mcp/tools.py
-- [ ] T043 [US4] Add complete_task to OpenAI tool definitions in backend/app/services/agent.py
-- [ ] T044 [US4] Handle clarification responses when multiple tasks match in backend/app/services/agent.py
-
-**Checkpoint**: User Story 4 functional - can complete tasks through conversation
+**Checkpoint**: User Story 3 functional - can view tasks through conversation via MCP
 
 ---
 
-## Phase 7: User Story 5 - Update Task via Natural Language (Priority: P2)
+## Phase 7: User Story 4 - Toggle Task Completion (Priority: P2)
+
+**Goal**: Users can toggle task completion by telling the chatbot (e.g., "Mark buy groceries as done" or "Unmark groceries")
+
+**Independent Test**: Say "Mark buy groceries as done", verify task status toggles
+
+### Implementation
+
+- [X] T042 [US4] Test complete_task_toggle MCP tool integration via chat endpoint
+- [X] T043 [US4] Verify intent detection routes "done/finished/complete/unmark" keywords to complete_task_toggle tool
+- [X] T044 [US4] Implement task title fuzzy matching in complete_task_toggle tool in backend/app/mcp/server.py
+- [X] T045 [US4] Handle clarification when multiple tasks match title in backend/app/services/agent.py
+
+**Checkpoint**: User Story 4 functional - can toggle task completion through conversation via MCP
+
+---
+
+## Phase 8: User Story 5 - Update Task via Natural Language (Priority: P2)
 
 **Goal**: Users can update task details through conversation (e.g., "Change the groceries task to buy vegetables")
 
-**Independent Test**: Say "Update groceries task to add description: get milk", verify task description updates
+**Independent Test**: Say "Update groceries task to add description: get milk", verify task updates
 
-### Implementation for User Story 5
+### Implementation
 
-- [ ] T045 [US5] Implement update_task MCP tool function in backend/app/mcp/tools.py (user_id, task_id/task_title, new_title, new_description params)
-- [ ] T046 [US5] Add update_task to OpenAI tool definitions in backend/app/services/agent.py
-- [ ] T047 [US5] Handle task identification and update confirmation in backend/app/services/agent.py
+- [X] T046 [US5] Test update_task MCP tool integration via chat endpoint
+- [X] T047 [US5] Verify intent detection routes "change/update/rename/edit" keywords to update_task tool
+- [X] T048 [US5] Verify AI confirmation message after task update
 
-**Checkpoint**: User Story 5 functional - can update tasks through conversation
+**Checkpoint**: User Story 5 functional - can update tasks through conversation via MCP
 
 ---
 
-## Phase 8: User Story 6 - Delete Task via Natural Language (Priority: P3)
+## Phase 9: User Story 6 - Delete Task via Natural Language (Priority: P3)
 
 **Goal**: Users can delete tasks through conversation (e.g., "Delete the groceries task")
 
 **Independent Test**: Say "Delete the groceries task", verify task is removed
 
-### Implementation for User Story 6
+### Implementation
 
-- [ ] T048 [US6] Implement delete_task MCP tool function in backend/app/mcp/tools.py (user_id, task_id or task_title params)
-- [ ] T049 [US6] Add delete_task to OpenAI tool definitions in backend/app/services/agent.py
-- [ ] T050 [US6] Handle deletion confirmation in AI response in backend/app/services/agent.py
+- [X] T049 [US6] Test delete_task MCP tool integration via chat endpoint
+- [X] T050 [US6] Verify intent detection routes "delete/remove/get rid" keywords to delete_task tool
+- [X] T051 [US6] Verify AI confirmation message after task deletion
 
-**Checkpoint**: User Story 6 functional - can delete tasks through conversation
+**Checkpoint**: User Story 6 functional - can delete tasks through conversation via MCP
 
 ---
 
-## Phase 9: Polish & Cross-Cutting Concerns
+## Phase 10: Polish & Cross-Cutting Concerns
 
 **Purpose**: Error handling, edge cases, and improvements across all user stories
 
 ### Error Handling
 
-- [ ] T051 Add OpenAI API error handling with retry logic (503 errors) in backend/app/services/agent.py
-- [ ] T052 [P] Implement timeout handling (<5s target, show appropriate message) in backend/app/services/agent.py
-- [ ] T053 [P] Add graceful degradation when AI service unavailable in backend/app/api/routes/chat.py
-- [ ] T054 Handle empty message validation (return 400) in backend/app/api/routes/chat.py
-- [ ] T055 [P] Handle long message truncation (max 2000 chars) in backend/app/schemas/chat.py
+- [X] T052 Add MCP server error handling with graceful degradation in backend/app/mcp/server.py
+- [X] T053 [P] Add MCP client timeout handling (5s target) in backend/app/services/mcp_client.py
+- [X] T054 [P] Update agent error messages for MCP failures in backend/app/services/agent.py
+- [X] T055 Handle empty message validation (return 400) in backend/app/api/routes/chat.py
 
 ### Frontend Polish
 
-- [ ] T056 Add error state handling and retry button in frontend/src/components/chat/chat-container.tsx
-- [ ] T057 [P] Add message send failure queuing (offline-first) in frontend/src/hooks/use-chat.ts
-- [ ] T058 [P] Style chat components to match existing Tailwind/Radix design in frontend/src/components/chat/
-- [ ] T059 Add loading skeleton for conversation history in frontend/src/components/chat/message-list.tsx
+- [X] T056 Add error state handling for MCP failures in frontend/src/components/chat/chat-container.tsx
+- [X] T057 [P] Style ChatKit components to match existing Tailwind/Radix design in frontend/src/components/chat/
+- [X] T058 [P] Add loading skeleton for conversation history in frontend/src/components/chat/message-list.tsx
 
 ### Edge Cases
 
-- [ ] T060 Handle non-task-related messages gracefully (guide user to task management) in backend/app/services/agent.py
-- [ ] T061 [P] Handle multiple tasks with similar names (ask for clarification) in backend/app/mcp/tools.py
-- [ ] T062 Run quickstart.md manual validation flow
+- [X] T059 Handle non-task-related messages gracefully (guide user to task management) in backend/app/services/agent.py
+- [X] T060 [P] Handle multiple tasks with similar names (ask for clarification) in backend/app/mcp/server.py
+- [X] T061 Run quickstart.md manual validation flow
 
 ---
 
@@ -204,66 +240,71 @@
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies - can start immediately
-- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
-- **User Stories (Phase 3-8)**: All depend on Foundational phase completion
-  - US1 (Phase 3): First to complete - enables basic chat
-  - US2 (Phase 4): Can start after US1 - requires tool calling loop
-  - US3 (Phase 5): Can start in parallel with US2
-  - US4 (Phase 6): Can start after US1-3 foundation
-  - US5 (Phase 7): Can start after US1-3 foundation
-  - US6 (Phase 8): Can start after US1-3 foundation
-- **Polish (Phase 9)**: Depends on US1-6 being complete
+- **Setup & Cleanup (Phase 1)**: No dependencies - can start immediately
+- **MCP Server (Phase 2)**: Depends on Phase 1 completion - BLOCKS agent refactor
+- **Agent Refactor (Phase 3)**: Depends on Phase 2 (MCP server must be running)
+- **User Stories (Phase 4-9)**: All depend on Phase 3 completion (agent using MCP)
+  - US1 (Phase 4): First to complete - enables basic chat via MCP
+  - US2 (Phase 5): Can start after US1 - requires MCP tool routing
+  - US3 (Phase 6): Can start in parallel with US2
+  - US4-6 (Phase 7-9): Can start in parallel once US1-3 foundation exists
+- **Polish (Phase 10)**: Depends on US1-6 being complete
 
-### User Story Dependencies
+### MCP Architecture Flow
 
-- **US1 (P1)**: Can start after Foundational - No dependencies on other stories
-- **US2 (P1)**: Depends on US1 (needs tool calling infrastructure)
-- **US3 (P1)**: Depends on US1 (needs tool calling infrastructure)
-- **US4 (P2)**: Depends on US1 tool infrastructure; independent of US2/US3
-- **US5 (P2)**: Depends on US1 tool infrastructure; independent of US2-4
-- **US6 (P3)**: Depends on US1 tool infrastructure; independent of US2-5
-
-### Within Each User Story
-
-- Backend MCP tool implementation first
-- Add tool to agent definitions
-- Implement tool calling in agent
-- Frontend updates (if any)
+```
++-------------------------------------------------------------------+
+|                        Frontend (Next.js)                         |
+|                    ChatKit UI Components                          |
++----------------------+--------------------------------------------+
+                       | HTTP
+                       v
++-------------------------------------------------------------------+
+|                     FastAPI Backend                               |
+|  +--------------+    +--------------+    +------------------+     |
+|  | Chat Routes  |--->| Agent Service|--->| MCP Client       |     |
+|  | /chat        |    | (Gemini AI)  |    | (tool executor)  |     |
+|  +--------------+    +--------------+    +--------+---------+     |
+|                                                   |               |
+|                                          +--------v---------+     |
+|                                          | MCP Server       |     |
+|                                          | (Official SDK)   |     |
+|                                          | - add_task       |     |
+|                                          | - list_tasks     |     |
+|                                          | - update_task    |     |
+|                                          | - complete_toggle|     |
+|                                          | - delete_task    |     |
+|                                          +--------+---------+     |
+|                                                   |               |
+|                                          +--------v---------+     |
+|                                          |   PostgreSQL     |     |
+|                                          |   (Tasks, Chat)  |     |
+|                                          +------------------+     |
++-------------------------------------------------------------------+
+```
 
 ### Parallel Opportunities
 
-- T001-T004 (Setup) can run in parallel
-- T005-T009 (Models) can run in parallel after T001-T004
-- T010-T014 (MCP/Schemas) can run in parallel
-- T028-T030 (Chat UI components) can run in parallel
-- T051-T055 (Error handling) can run in parallel
-- US4, US5, US6 can run in parallel once US1 completes
+- T001-T006 (Cleanup/Setup) - T002, T003, T006 can run in parallel
+- T010-T014 (MCP Tools) - All 5 tools can be implemented in parallel
+- T030-T032 (Frontend verification) - All can run in parallel
+- T052-T055 (Error handling) - T053, T054 can run in parallel
+- US4, US5, US6 can run in parallel once US1-3 foundation exists
 
 ---
 
-## Parallel Example: Phase 2 Foundational
+## Parallel Example: MCP Tool Implementation
 
 ```bash
-# Launch model creation in parallel:
-Task T005: "Create Conversation model in backend/app/models/conversation.py"
-Task T006: "Create MessageRole enum and Message model in backend/app/models/message.py"
-Task T007: "Add description field to Task model in backend/app/models/task.py"
+# Launch all MCP tool implementations in parallel:
+Task T010: "Implement add_task MCP tool"
+Task T011: "Implement list_tasks MCP tool"
+Task T012: "Implement update_task MCP tool"
+Task T013: "Implement complete_task_toggle MCP tool"
+Task T014: "Implement delete_task MCP tool"
 
-# After models complete, launch migration:
-Task T009: "Generate Alembic migration for new tables"
-```
-
-## Parallel Example: User Story 1 Frontend
-
-```bash
-# Launch all UI components in parallel:
-Task T028: "Create TypingIndicator component"
-Task T029: "Create MessageList component"
-Task T030: "Create MessageInput component"
-
-# Then compose them:
-Task T031: "Create ChatContainer component"
+# After tools complete, integrate with agent:
+Task T015-T017: "MCP server integration"
 ```
 
 ---
@@ -272,21 +313,22 @@ Task T031: "Create ChatContainer component"
 
 ### MVP First (User Stories 1-3 Only)
 
-1. Complete Phase 1: Setup (T001-T004)
-2. Complete Phase 2: Foundational (T005-T014)
-3. Complete Phase 3: User Story 1 - Basic Chat (T015-T033)
-4. Complete Phase 4: User Story 2 - Add Task (T034-T037)
-5. Complete Phase 5: User Story 3 - List Tasks (T038-T040)
-6. **STOP and VALIDATE**: Test all P1 stories work independently
-7. Deploy MVP
+1. Complete Phase 1: Setup & Cleanup (T001-T006)
+2. Complete Phase 2: MCP Server Implementation (T007-T017)
+3. Complete Phase 3: Agent Service Refactor (T018-T026)
+4. Complete Phase 4: User Story 1 - Basic Chat (T027-T035)
+5. Complete Phase 5: User Story 2 - Add Task (T036-T038)
+6. Complete Phase 6: User Story 3 - List Tasks (T039-T041)
+7. **STOP and VALIDATE**: Test all P1 stories work independently
+8. Deploy MVP
 
 ### Incremental Delivery
 
-1. Complete Setup + Foundational -> Foundation ready
-2. Add User Story 1 -> Test independently -> Deploy (Chat works!)
-3. Add User Story 2 -> Test independently -> Deploy (Can add tasks!)
-4. Add User Story 3 -> Test independently -> Deploy (Can list tasks!) **<- MVP Complete**
-5. Add User Story 4 -> Test independently -> Deploy (Can complete tasks!)
+1. Complete Cleanup + MCP Server + Agent Refactor -> MCP Foundation ready
+2. Add User Story 1 -> Test independently -> Deploy (Chat works with MCP!)
+3. Add User Story 2 -> Test independently -> Deploy (Can add tasks via MCP!)
+4. Add User Story 3 -> Test independently -> Deploy (Can list tasks via MCP!) <- MVP Complete
+5. Add User Story 4 -> Test independently -> Deploy (Can toggle completion!)
 6. Add User Story 5 -> Test independently -> Deploy (Can update tasks!)
 7. Add User Story 6 -> Test independently -> Deploy (Can delete tasks!)
 8. Polish phase -> Final validation
@@ -295,24 +337,25 @@ Task T031: "Create ChatContainer component"
 
 ## Summary
 
-| Phase | User Story | Priority | Task Count | Key Deliverable |
-|-------|-----------|----------|------------|-----------------|
-| 1 | Setup | - | 4 | Dependencies installed |
-| 2 | Foundational | - | 10 | Models, schemas, MCP base |
-| 3 | US1 - Chat & Response | P1 | 19 | Basic AI chat working |
-| 4 | US2 - Add Task | P1 | 4 | Create tasks via chat |
-| 5 | US3 - List Tasks | P1 | 3 | View tasks via chat |
-| 6 | US4 - Complete Task | P2 | 4 | Mark tasks done via chat |
-| 7 | US5 - Update Task | P2 | 3 | Modify tasks via chat |
-| 8 | US6 - Delete Task | P3 | 3 | Remove tasks via chat |
-| 9 | Polish | - | 12 | Error handling, edge cases |
-| **Total** | | | **62** | |
+| Phase | Description | Task Count | Key Deliverable |
+|-------|-------------|------------|-----------------|
+| 1 | Setup & Cleanup | 6 | OpenAI function calling removed |
+| 2 | MCP Server Implementation | 11 | Official MCP SDK server with 5 tools |
+| 3 | Agent Service Refactor | 9 | Agent uses MCP client for tools |
+| 4 | US1 - Chat & Response | 9 | Basic AI chat via MCP |
+| 5 | US2 - Add Task | 3 | Create tasks via MCP |
+| 6 | US3 - List Tasks | 3 | View tasks via MCP |
+| 7 | US4 - Toggle Completion | 4 | Toggle task status via MCP |
+| 8 | US5 - Update Task | 3 | Modify tasks via MCP |
+| 9 | US6 - Delete Task | 3 | Remove tasks via MCP |
+| 10 | Polish | 10 | Error handling, edge cases |
+| **Total** | | **61** | |
 
 ### Suggested MVP Scope
 
-- **Phase 1-5 (US1-US3)**: 40 tasks
-- **Core functionality**: Send/receive messages, add tasks, list tasks
-- **Validates**: Full conversation flow, tool calling, persistence
+- **Phase 1-6 (US1-US3)**: 41 tasks
+- **Core functionality**: Send/receive messages, add tasks, list tasks - all via MCP SDK
+- **Validates**: Full MCP server/client flow, tool execution, conversation persistence
 
 ---
 
@@ -323,6 +366,7 @@ Task T031: "Create ChatContainer component"
 - Each user story should be independently completable and testable
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
-- All MCP tools must accept `user_id` explicitly (stateless design)
-- Frontend uses ChatKit (@chatscope/chat-ui-kit-react)
-- Backend uses OpenAI SDK with GPT-4o-mini
+- **MCP SDK**: Using official mcp>=1.0.0 with @mcp.tool() decorators
+- **Tools**: add_task, list_tasks, update_task, complete_task_toggle, delete_task
+- **Frontend**: ChatKit UI (@chatscope/chat-ui-kit-react) - already implemented
+- **Backend**: Gemini 2.0 Flash via OpenAI-compatible endpoint for AI, MCP SDK for tools

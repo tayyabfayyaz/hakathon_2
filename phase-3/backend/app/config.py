@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Authentication
     better_auth_secret: str
 
+    # Gemini Configuration (Phase-3 AI Chatbot)
+    gemini_api_key: str = ""
+
     # CORS
     cors_origins: str = "http://localhost:3000"
 
