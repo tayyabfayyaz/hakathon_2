@@ -5,20 +5,28 @@ This service handles:
 - Conversation context building from message history
 - MCP tool routing via intent detection
 - Response generation with retry logic
+- Friendly, casual conversation style (like a buddy!)
+- Roman English/Urdu/Hindi language support (Hinglish)
 
 Refactored to use Official MCP SDK via MCP client for tool execution.
 
-Intent Detection Rules:
-- Task Creation: add, create, remember, remind, need to, have to, should, must, todo, want to
-- Task Listing: see, show, list, what, view, display, all tasks, my tasks
-- Task Completion: done, complete, finish, mark, check off, completed, finished
-- Task Deletion: delete, remove, cancel, get rid of, drop, trash
-- Task Update: update, change, edit, modify, rename, fix
+Intent Detection Rules (English + Roman Urdu/Hindi):
+- Task Creation: add, create, remember, remind, need to, want to,
+                 karna hai, lena hai, chahiye, mujhe, add karo
+- Task Listing: see, show, list, what, view, display, my tasks,
+                dikhao, batao, kya hai, kya karna hai
+- Task Completion: done, complete, finish, mark, checked,
+                   ho gaya, kar diya, khatam, nipta diya
+- Task Deletion: delete, remove, cancel, get rid of, drop,
+                 hata do, nikalo, delete karo, mita do
+- Task Update: update, change, edit, modify, rename,
+               badlo, change karo, edit karo, theek karo
 """
 
 import asyncio
 import json
 import logging
+import random
 import re
 from typing import Optional
 
@@ -32,24 +40,32 @@ from app.services.mcp_client import get_mcp_client, MCPClient
 logger = logging.getLogger(__name__)
 
 
-SYSTEM_PROMPT = """You are a helpful AI assistant for a todo list application. Your primary role is to help users manage their tasks through natural conversation.
+SYSTEM_PROMPT = """You are a friendly buddy who helps manage tasks - like a chill friend who's always there to help out! Talk casually, use everyday language, and be warm and supportive.
 
-You can:
-- Add new tasks when users describe things they need to do
-- List and show users their existing tasks
-- Mark tasks as complete when users say they've finished something
-- Update task titles or descriptions
-- Delete tasks when requested
+You understand:
+- English (formal and casual)
+- Roman English / Romanized Urdu-Hindi (like "mujhe banana lena hai", "kaam kar diya", "dikhao tasks")
+- Mix of languages (Hinglish/Urdish)
 
-Guidelines:
-- Be conversational and friendly
-- Infer user intent from natural language (e.g., "I need to buy groceries" means add a task)
-- Always confirm actions you take with a friendly response
-- If a task reference is ambiguous, ask for clarification
-- If the user asks about something unrelated to tasks, politely guide them back to task management
-- Keep responses concise but helpful
+Your vibe:
+- Talk like a friend, not a robot! Use casual phrases like "yaar", "bro", "done bhai!", "no worries!"
+- Be encouraging and supportive - celebrate when they complete tasks!
+- Keep it short and sweet - nobody likes long boring messages
+- Use emojis occasionally to be more expressive 😊
 
-When tool results are provided in the context, use them to craft your response confirming the action taken."""
+What you help with:
+- Adding tasks (when someone says "buy banana", "mujhe ye karna hai", "remind me to...")
+- Showing tasks (when they ask "kya karna hai?", "show tasks", "list dikhao")
+- Completing tasks (when they say "ho gaya", "done", "finish kar diya")
+- Deleting tasks (when they say "hata do", "delete karo", "remove this")
+
+Important:
+- If someone mentions something they need to do or buy, ADD it as a task automatically
+- Understand intent from context - "banana lena hai" means add task, not a question
+- When unsure which task they mean, ask nicely in a friendly way
+- If they chat about random stuff, be friendly but gently bring it back to tasks
+
+When tool results come in, confirm the action in a friendly way - like a buddy would!"""
 
 
 class AIServiceUnavailableError(Exception):
@@ -67,32 +83,72 @@ class AgentService:
     MAX_RETRIES = 3
     RETRY_DELAY = 1.0  # seconds
 
-    # Intent detection keywords
+    # Intent detection keywords (English + Roman English/Urdu/Hindi)
     ADD_KEYWORDS = [
+        # English
         "add", "create", "new task", "remind", "remember",
         "need to", "have to", "should", "must", "todo",
-        "want to", "gotta", "going to", "gonna", "plan to"
+        "want to", "gotta", "going to", "gonna", "plan to",
+        "i want", "i need", "buy", "get",
+        # Roman Urdu/Hindi
+        "karna hai", "karna he", "karna", "karni hai", "karni",
+        "lena hai", "lena he", "lena", "leni hai", "leni",
+        "chahiye", "chaiye", "chahte", "mangta", "mangti",
+        "yaad", "yaad kara", "yaad dila", "remind karo",
+        "add karo", "add kardo", "daal do", "daalo", "dal do",
+        "likhna", "likho", "likh do", "note karo",
+        "mujhe", "mujhay", "mereko", "mere liye",
+        "khareed", "khareedna", "kharidna", "purchase",
     ]
 
     LIST_KEYWORDS = [
+        # English
         "list", "show", "see", "view", "display", "what are",
         "what's", "my tasks", "all tasks", "tasks", "pending",
-        "what do i have", "what do i need"
+        "what do i have", "what do i need",
+        # Roman Urdu/Hindi
+        "dikhao", "dikha do", "dikha", "batao", "bata do",
+        "kya hai", "kya karna", "kya karna hai", "kya pending",
+        "konse", "kaun se", "mere tasks", "meri list",
+        "sab dikhao", "sara dikhao", "poora list",
+        "kya kya", "kitne tasks", "kitne kaam",
     ]
 
     COMPLETE_KEYWORDS = [
+        # English
         "done", "complete", "finish", "finished", "completed",
-        "mark", "check", "checked", "tick", "accomplish"
+        "mark", "check", "checked", "tick", "accomplish",
+        # Roman Urdu/Hindi
+        "ho gaya", "hogaya", "ho gya", "hogya",
+        "kar diya", "kardiya", "kar dia", "kardia",
+        "kar liya", "karliya", "kar lia", "karlia",
+        "khatam", "khtam", "mukammal", "complete karo",
+        "done hai", "done he", "finish kiya",
+        "nipta", "nipta diya", "nipat gaya",
     ]
 
     DELETE_KEYWORDS = [
+        # English
         "delete", "remove", "cancel", "get rid", "drop",
-        "trash", "eliminate", "clear", "erase"
+        "trash", "eliminate", "clear", "erase",
+        # Roman Urdu/Hindi
+        "hata do", "hatao", "hata de", "hatado",
+        "delete karo", "delete kardo", "remove karo",
+        "nikalo", "nikal do", "nikal de",
+        "cancel karo", "cancel kardo",
+        "mita do", "mitao", "mita de",
+        "khatam karo", "band karo",
     ]
 
     UPDATE_KEYWORDS = [
+        # English
         "update", "change", "edit", "modify", "rename",
-        "fix", "correct", "alter", "revise"
+        "fix", "correct", "alter", "revise",
+        # Roman Urdu/Hindi
+        "badlo", "badal do", "badal de", "change karo",
+        "edit karo", "theek karo", "sahi karo",
+        "update karo", "modify karo",
+        "naam badlo", "rename karo",
     ]
 
     def __init__(self):
@@ -146,8 +202,14 @@ class AgentService:
         """
         msg_lower = message.lower().strip()
 
-        # Skip very short messages or greetings
-        greetings = ["hi", "hello", "hey", "hola", "yo", "sup", "thanks", "thank you", "bye", "goodbye"]
+        # Skip very short messages or greetings (English + Roman Urdu/Hindi)
+        greetings = [
+            "hi", "hello", "hey", "hola", "yo", "sup", "thanks", "thank you", "bye", "goodbye",
+            "salam", "assalam", "aoa", "aslam", "walaikum", "shukriya", "shukria",
+            "kya haal", "kaise ho", "theek", "thik", "acha", "ok", "okay", "haan", "han",
+            "ji", "g", "nahi", "nhi", "na", "khuda hafiz", "allah hafiz", "bye bhai",
+            "yaar", "bro", "bhai", "dost"
+        ]
         if msg_lower in greetings or len(msg_lower) < 3:
             return "default", {}
 
@@ -182,11 +244,23 @@ class AgentService:
                 return "add", {"title": title}
 
         # Check if message looks like a task (starts with verb or is imperative)
-        task_verbs = ["buy", "call", "email", "send", "write", "read", "clean",
-                      "fix", "make", "get", "pick", "schedule", "book", "pay",
-                      "submit", "review", "prepare", "finish", "start"]
+        task_verbs = [
+            # English verbs
+            "buy", "call", "email", "send", "write", "read", "clean",
+            "fix", "make", "get", "pick", "schedule", "book", "pay",
+            "submit", "review", "prepare", "finish", "start", "do",
+            "order", "deliver", "cook", "wash", "iron", "study",
+            # Roman Urdu/Hindi verbs
+            "khareed", "le", "lao", "jao", "karo", "kha", "pi",
+            "parh", "padh", "likh", "bhej", "call", "mil",
+        ]
         first_word = msg_lower.split()[0] if msg_lower.split() else ""
         if first_word in task_verbs:
+            return "add", {"title": message}
+
+        # If message contains "lena", "karna" etc. treat as task
+        task_intent_words = ["lena", "karna", "karni", "leni", "chahiye", "chaiye"]
+        if any(word in msg_lower for word in task_intent_words):
             return "add", {"title": message}
 
         return "default", {}
@@ -196,20 +270,41 @@ class AgentService:
         msg_lower = message.lower()
         title = message
 
-        # Remove common prefixes
+        # Remove common prefixes (English + Roman Urdu/Hindi)
         prefixes = [
+            # English prefixes
             "add a task to ", "add task to ", "add a task ", "add task ",
             "create a task to ", "create task to ", "create a task ", "create task ",
             "new task to ", "new task ",
             "remind me to ", "remember to ",
             "i need to ", "i have to ", "i should ", "i must ", "i want to ",
             "i gotta ", "i'm going to ", "i gonna ", "i plan to ",
-            "add ", "create ", "todo "
+            "i want ", "i need ", "i wanna ",
+            "add ", "create ", "todo ",
+            # Roman Urdu/Hindi prefixes
+            "mujhe ", "mujhay ", "mereko ", "mere liye ",
+            "muje ", "mjhe ", "mjhy ",
+            "yaad kara do ", "yaad kara ", "yaad dila do ", "yaad dila ",
+            "remind karo ", "remind kardo ",
+            "add karo ", "add kardo ", "task add karo ",
+            "daal do ", "daalo ", "dal do ",
+            "likh do ", "likho ", "note karo ",
         ]
 
         for prefix in prefixes:
             if msg_lower.startswith(prefix):
                 title = message[len(prefix):].strip()
+                break
+
+        # Remove common suffixes (Roman Urdu/Hindi)
+        suffixes = [
+            " karna hai", " karna he", " karna", " karni hai", " karni",
+            " lena hai", " lena he", " lena", " leni hai", " leni",
+            " chahiye", " chaiye", " hai", " he",
+        ]
+        for suffix in suffixes:
+            if title.lower().endswith(suffix):
+                title = title[:-len(suffix)].strip()
                 break
 
         # Clean up
@@ -297,43 +392,51 @@ class AgentService:
         return await self.mcp_client.call_tool(tool_name, tool_args)
 
     def _format_friendly_response(self, intent: str, result: dict, args: dict) -> str:
-        """Format a friendly confirmation response for tool results."""
+        """Format a friendly, casual confirmation response for tool results."""
         if not result.get("success"):
             error = result.get("error", "Unknown error")
 
-            # Handle specific error cases gracefully
+            # Handle specific error cases gracefully - friendly style
             if "not found" in error.lower():
-                return f"I couldn't find a task matching that. Could you be more specific about which task you mean?"
+                return "Yaar, mujhe wo task nahi mila 🤔 Thoda specific bata do konsa task?"
             elif "multiple" in error.lower():
                 matches = result.get("matches", [])
                 if matches:
-                    match_list = "\n".join([f"  - {m.get('title')}" for m in matches[:5]])
-                    return f"I found multiple tasks that could match:\n{match_list}\n\nWhich one did you mean?"
-                return "I found multiple tasks matching that. Could you be more specific?"
+                    match_list = "\n".join([f"  • {m.get('title')}" for m in matches[:5]])
+                    return f"Bhai, kai tasks mil gaye similar wale:\n{match_list}\n\nKonsa chahiye exactly?"
+                return "Multiple tasks mil gaye yaar. Thoda specific bata do!"
             else:
-                return f"I ran into an issue: {error}. Could you try again?"
+                return f"Oops! Kuch issue ho gaya: {error}. Dobara try karo please?"
 
-        # Success responses
+        # Success responses - friendly casual style
         if intent == "add":
             task = result.get("task", {})
             title = task.get("title", args.get("title", "your task"))
-            return f"Got it! I've added '{title}' to your task list."
+            responses = [
+                f"Done bhai! '{title}' add kar diya list mein ✅",
+                f"Likh liya yaar! '{title}' ab list mein hai 📝",
+                f"Ho gaya! '{title}' add ho gaya ✨",
+            ]
+            return random.choice(responses)
 
         elif intent == "list":
             tasks = result.get("tasks", [])
             count = result.get("count", len(tasks))
 
             if count == 0:
-                return "You don't have any tasks yet. Would you like me to add one for you?"
+                return "Bhai abhi koi task nahi hai list mein 📭 Kuch add karna hai?"
 
             # Format task list
             task_lines = []
             for t in tasks[:10]:
-                status = "✓" if t.get("completed") else "○"
+                status = "✅" if t.get("completed") else "⏳"
                 task_lines.append(f"  {status} {t.get('title', 'Unknown')}")
 
             task_list = "\n".join(task_lines)
-            header = f"Here are your tasks ({count} total):" if count > 10 else "Here are your tasks:"
+            if count > 10:
+                header = f"Yeh rahi teri list yaar ({count} tasks hain total):"
+            else:
+                header = "Yeh rahi teri task list:"
 
             return f"{header}\n{task_list}"
 
@@ -345,22 +448,27 @@ class AgentService:
             title = task.get("title", "the task")
             is_completed = task.get("completed", True)
             if is_completed:
-                return f"Awesome! I've marked '{title}' as complete. Great job!"
+                responses = [
+                    f"Shabaash! '{title}' done mark kar diya 🎉 Great job!",
+                    f"Arre wah! '{title}' complete ho gaya 💪 Keep it up!",
+                    f"Mast! '{title}' khatam ✅ Tera kaam ho gaya!",
+                ]
+                return random.choice(responses)
             else:
-                return f"I've unmarked '{title}' - it's back on your to-do list."
+                return f"Okay, '{title}' wapas pending mein daal diya - ab karna padega! 😄"
 
         elif intent == "delete":
             msg = result.get("message", "")
             if msg:
                 return msg
-            return "Done! I've removed that task from your list."
+            return "Hata diya bhai! Task list se nikal gaya 🗑️"
 
         elif intent == "update":
             task = result.get("task", {})
             title = task.get("title", "the task")
-            return f"I've updated the task. It's now: '{title}'"
+            return f"Done! Task update ho gaya: '{title}' ✏️"
 
-        return "Done!"
+        return "Ho gaya! ✅"
 
     async def _demo_mode_response(
         self,
@@ -407,13 +515,14 @@ class AgentService:
                 logger.error(f"Demo mode MCP tool error: {e}")
                 return f"I encountered an error: {str(e)}. Please try again.", tool_call_results
 
-        # Default response for non-task messages
-        return ("I'm your task assistant! I can help you:\n"
-                "  • Add tasks (e.g., 'Add buy groceries')\n"
-                "  • Show your tasks (e.g., 'Show my tasks')\n"
-                "  • Complete tasks (e.g., 'Mark groceries as done')\n"
-                "  • Delete tasks (e.g., 'Delete the groceries task')\n\n"
-                "What would you like to do?"), tool_call_results
+        # Default response for non-task messages - friendly style
+        return ("Hey yaar! Main tera task buddy hoon 🙌\n\n"
+                "Main tujhe help kar sakta hoon:\n"
+                "  📝 Tasks add karna (bol 'banana lena hai' ya 'add groceries')\n"
+                "  📋 Tasks dikhana (bol 'dikhao tasks' ya 'show my list')\n"
+                "  ✅ Tasks complete karna (bol 'ho gaya' ya 'done')\n"
+                "  🗑️ Tasks delete karna (bol 'hata do' ya 'delete task')\n\n"
+                "Bol, kya karna hai? 😊"), tool_call_results
 
     async def generate_response(
         self,
