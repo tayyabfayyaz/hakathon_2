@@ -1,0 +1,61 @@
+# Default values for TodoList Pro Frontend subchart
+# This is a YAML-formatted file.
+
+# -- Enable/disable the frontend deployment
+enabled: true
+
+# -- Number of replicas
+replicaCount: 1
+
+# -- Container image settings
+image:
+  repository: todolist-frontend
+  tag: local
+  pullPolicy: Never  # For minikube with docker-env
+
+# -- Service configuration
+service:
+  type: NodePort
+  port: 3000
+  # nodePort: 30080  # Uncomment to set fixed NodePort
+
+# -- Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# -- Health probe configuration
+probes:
+  liveness:
+    path: /
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    path: /
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# -- Non-sensitive configuration
+config:
+  nextPublicApiUrl: "http://todolist-pro-backend:8000"
+  betterAuthUrl: "http://localhost:3000"
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Node selector
+nodeSelector: {}
+
+# -- Tolerations
+tolerations: []
+
+# -- Affinity rules
+affinity: {}

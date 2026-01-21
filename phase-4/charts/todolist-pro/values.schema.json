@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "TodoList Pro Helm Values",
+  "description": "Configuration schema for TodoList Pro Kubernetes deployment",
+  "type": "object",
+  "properties": {
+    "global": {
+      "type": "object",
+      "description": "Global settings shared across all subcharts",
+      "properties": {
+        "environment": {
+          "type": "string",
+          "enum": ["local", "development", "staging", "production"],
+          "default": "local",
+          "description": "Deployment environment"
+        },
+        "imagePullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"],
+          "default": "Never",
+          "description": "Image pull policy (Never for minikube docker-env)"
+        }
+      }
+    },
+    "frontend": {
+      "type": "object",
+      "description": "Frontend (Next.js) deployment configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 1
+        },
+        "image": {
+          "type": "object",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "default": "todolist-frontend"
+            },
+            "tag": {
+              "type": "string",
+              "default": "local"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "enum": ["Always", "IfNotPresent", "Never"]
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+              "default": "NodePort"
+            },
+            "port": {
+              "type": "integer",
+              "default": 3000
+            },
+            "nodePort": {
+              "type": "integer",
+              "minimum": 30000,
+              "maximum": 32767,
+              "description": "Optional fixed NodePort (auto-assigned if omitted)"
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "default": "500m"
+                },
+                "memory": {
+                  "type": "string",
+                  "default": "512Mi"
+                }
+              }
+            },
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "default": "100m"
+                },
+                "memory": {
+                  "type": "string",
+                  "default": "256Mi"
+                }
+              }
+            }
+          }
+        },
+        "probes": {
+          "type": "object",
+          "properties": {
+            "liveness": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/"
+                },
+                "initialDelaySeconds": {
+                  "type": "integer",
+                  "default": 30
+                },
+                "periodSeconds": {
+                  "type": "integer",
+                  "default": 15
+                },
+                "timeoutSeconds": {
+                  "type": "integer",
+                  "default": 5
+                },
+                "failureThreshold": {
+                  "type": "integer",
+                  "default": 3
+                }
+              }
+            },
+            "readiness": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/"
+                },
+                "initialDelaySeconds": {
+                  "type": "integer",
+                  "default": 20
+                },
+                "periodSeconds": {
+                  "type": "integer",
+                  "default": 10
+                },
+                "timeoutSeconds": {
+                  "type": "integer",
+                  "default": 5
+                },
+                "failureThreshold": {
+                  "type": "integer",
+                  "default": 3
+                }
+              }
+            }
+          }
+        },
+        "config": {
+          "type": "object",
+          "description": "Non-sensitive environment configuration",
+          "properties": {
+            "nextPublicApiUrl": {
+              "type": "string",
+              "default": "http://todolist-pro-backend:8000",
+              "description": "Backend API URL (internal K8s DNS)"
+            },
+            "betterAuthUrl": {
+              "type": "string",
+              "description": "Auth callback URL"
+            }
+          }
+        }
+      },
+      "required": ["enabled", "image"]
+    },
+    "backend": {
+      "type": "object",
+      "description": "Backend (FastAPI) deployment configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 1
+        },
+        "image": {
+          "type": "object",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "default": "todolist-backend"
+            },
+            "tag": {
+              "type": "string",
+              "default": "local"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "enum": ["Always", "IfNotPresent", "Never"]
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["ClusterIP", "NodePort"],
+              "default": "ClusterIP"
+            },
+            "port": {
+              "type": "integer",
+              "default": 8000
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "default": "500m"
+                },
+                "memory": {
+                  "type": "string",
+                  "default": "512Mi"
+                }
+              }
+            },
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "default": "100m"
+                },
+                "memory": {
+                  "type": "string",
+                  "default": "256Mi"
+                }
+              }
+            }
+          }
+        },
+        "probes": {
+          "type": "object",
+          "properties": {
+            "liveness": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/health"
+                },
+                "initialDelaySeconds": {
+                  "type": "integer",
+                  "default": 10
+                },
+                "periodSeconds": {
+                  "type": "integer",
+                  "default": 15
+                },
+                "timeoutSeconds": {
+                  "type": "integer",
+                  "default": 5
+                },
+                "failureThreshold": {
+                  "type": "integer",
+                  "default": 3
+                }
+              }
+            },
+            "readiness": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "default": "/health"
+                },
+                "initialDelaySeconds": {
+                  "type": "integer",
+                  "default": 5
+                },
+                "periodSeconds": {
+                  "type": "integer",
+                  "default": 10
+                },
+                "timeoutSeconds": {
+                  "type": "integer",
+                  "default": 5
+                },
+                "failureThreshold": {
+                  "type": "integer",
+                  "default": 3
+                }
+              }
+            }
+          }
+        },
+        "config": {
+          "type": "object",
+          "description": "Non-sensitive environment configuration",
+          "properties": {
+            "apiVersion": {
+              "type": "string",
+              "default": "v1"
+            },
+            "debug": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "default": "false"
+            },
+            "port": {
+              "type": "string",
+              "default": "8000"
+            }
+          }
+        }
+      },
+      "required": ["enabled", "image"]
+    },
+    "secrets": {
+      "type": "object",
+      "description": "Sensitive configuration (pass via --set, not in files)",
+      "properties": {
+        "databaseUrl": {
+          "type": "string",
+          "description": "PostgreSQL connection string (Neon)"
+        },
+        "geminiApiKey": {
+          "type": "string",
+          "description": "Google Gemini API key"
+        },
+        "betterAuthSecret": {
+          "type": "string",
+          "description": "JWT signing secret (minimum 32 characters when provided)"
+        },
+        "corsOrigins": {
+          "type": "string",
+          "description": "Comma-separated list of allowed CORS origins",
+          "default": "http://localhost:3000"
+        }
+      }
+    },
+    "nameOverride": {
+      "type": "string",
+      "description": "Override chart name"
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Override full chart name"
+    }
+  },
+  "required": ["frontend", "backend"]
+}

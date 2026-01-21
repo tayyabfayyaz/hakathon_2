@@ -1,0 +1,42 @@
+
+=================================================================
+  TodoList Pro has been deployed to your Kubernetes cluster!
+=================================================================
+
+1. Get the frontend URL by running:
+
+{{- if contains "NodePort" .Values.frontend.service.type }}
+   export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "todolist-pro.fullname" . }}-frontend)
+   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+   echo http://$NODE_IP:$NODE_PORT
+
+   Or use minikube service:
+   minikube service {{ include "todolist-pro.fullname" . }}-frontend --url
+{{- else if contains "LoadBalancer" .Values.frontend.service.type }}
+   NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+   You can watch the status by running:
+   kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "todolist-pro.fullname" . }}-frontend
+{{- else if contains "ClusterIP" .Values.frontend.service.type }}
+   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name=frontend,app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 3000:3000
+   echo "Visit http://localhost:3000 to access the application"
+{{- end }}
+
+2. Check pod status:
+   kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+3. View logs:
+   kubectl logs -l app.kubernetes.io/name=frontend -f
+   kubectl logs -l app.kubernetes.io/name=backend -f
+
+4. Test backend health:
+   kubectl exec deploy/{{ include "todolist-pro.fullname" . }}-backend -- wget -qO- http://localhost:8000/health
+
+=================================================================
+  Deployment Info
+=================================================================
+  Release:    {{ .Release.Name }}
+  Namespace:  {{ .Release.Namespace }}
+  Chart:      {{ .Chart.Name }}-{{ .Chart.Version }}
+  App:        {{ .Chart.AppVersion }}
+=================================================================

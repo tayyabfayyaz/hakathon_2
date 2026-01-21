@@ -1,0 +1,61 @@
+# Default values for TodoList Pro Backend subchart
+# This is a YAML-formatted file.
+
+# -- Enable/disable the backend deployment
+enabled: true
+
+# -- Number of replicas
+replicaCount: 1
+
+# -- Container image settings
+image:
+  repository: todolist-backend
+  tag: local
+  pullPolicy: Never  # For minikube with docker-env
+
+# -- Service configuration
+service:
+  type: ClusterIP
+  port: 8000
+
+# -- Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# -- Health probe configuration
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# -- Non-sensitive configuration
+config:
+  apiVersion: "v1"
+  debug: "false"
+  port: "8000"
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Node selector
+nodeSelector: {}
+
+# -- Tolerations
+tolerations: []
+
+# -- Affinity rules
+affinity: {}

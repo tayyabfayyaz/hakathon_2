@@ -1,0 +1,122 @@
+# Default values for TodoList Pro Helm Chart
+# This is a YAML-formatted file.
+
+# -- Global configuration shared across subcharts
+global:
+  # -- Deployment environment (local, development, staging, production)
+  environment: local
+  # -- Image pull policy (Never for minikube with docker-env)
+  imagePullPolicy: Never
+
+# -- Frontend subchart configuration
+frontend:
+  # -- Enable/disable frontend deployment
+  enabled: true
+  # -- Number of frontend replicas
+  replicaCount: 1
+  # -- Frontend container image
+  image:
+    repository: todolist-frontend
+    tag: local
+    pullPolicy: Never
+  # -- Frontend service configuration
+  service:
+    type: NodePort
+    port: 3000
+  # -- Frontend resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  # -- Frontend health probes
+  probes:
+    liveness:
+      path: /
+      initialDelaySeconds: 30
+      periodSeconds: 15
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      path: /
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+  # -- Frontend non-sensitive configuration
+  config:
+    # -- Backend API URL (internal K8s DNS)
+    nextPublicApiUrl: "http://todolist-pro-backend:8000"
+    # -- Auth callback URL
+    betterAuthUrl: "http://localhost:3000"
+
+# -- Backend subchart configuration
+backend:
+  # -- Enable/disable backend deployment
+  enabled: true
+  # -- Number of backend replicas
+  replicaCount: 1
+  # -- Backend container image
+  image:
+    repository: todolist-backend
+    tag: local
+    pullPolicy: Never
+  # -- Backend service configuration
+  service:
+    type: ClusterIP
+    port: 8000
+  # -- Backend resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  # -- Backend health probes
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 15
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+  # -- Backend non-sensitive configuration
+  config:
+    apiVersion: "v1"
+    debug: "false"
+    port: "8000"
+
+# -- Sensitive configuration (pass via --set, not stored in files)
+# These values should be provided at install time:
+#   helm install todolist-pro ./charts/todolist-pro \
+#     --set secrets.databaseUrl="postgresql+asyncpg://..." \
+#     --set secrets.frontendDatabaseUrl="postgresql://..." \
+#     --set secrets.betterAuthSecret="your-secret" \
+#     --set secrets.geminiApiKey="your-api-key"
+secrets:
+  # -- PostgreSQL connection string for backend (Python/SQLAlchemy)
+  # Required format: postgresql+asyncpg://user:pass@host/db?ssl=require
+  databaseUrl: ""
+  # -- PostgreSQL connection string for frontend (Node.js/pg)
+  # Required format: postgresql://user:pass@host/db?sslmode=require
+  frontendDatabaseUrl: ""
+  # -- Google Gemini API key
+  geminiApiKey: ""
+  # -- JWT signing secret (minimum 32 characters)
+  betterAuthSecret: ""
+  # -- Comma-separated list of allowed CORS origins
+  corsOrigins: "http://localhost:3000"
+
+# -- Name override
+nameOverride: ""
+# -- Full name override
+fullnameOverride: ""

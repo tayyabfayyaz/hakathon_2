@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env*
+.vercel
+coverage
+.nyc_output
+*.log
+.turbo
+out
+.cache
