@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "todolist.configMapName" . }}
+  labels:
+    {{- include "todolist.labels" . | nindent 4 }}
+data:
+  # API Configuration
+  API_VERSION: {{ .Values.config.apiVersion | quote }}
+  DEBUG: {{ .Values.config.debug | quote }}
+
+  # CORS Configuration
+  CORS_ORIGINS: {{ .Values.config.corsOrigins | quote }}
+
+  # Auth Configuration
+  BETTER_AUTH_URL: {{ .Values.config.betterAuthUrl | quote }}
+  NEXT_PUBLIC_BETTER_AUTH_URL: {{ .Values.config.betterAuthUrl | quote }}
+
+  # Backend URL (for frontend to connect)
+  NEXT_PUBLIC_API_URL: {{ .Values.config.backendUrl | quote }}

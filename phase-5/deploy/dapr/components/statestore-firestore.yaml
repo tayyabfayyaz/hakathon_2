@@ -1,0 +1,17 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+  namespace: dapr-demo
+spec:
+  type: state.gcp.firestore
+  version: v1
+  metadata:
+    - name: project_id
+      value: "${GCP_PROJECT_ID}"
+    - name: type
+      value: "service_account"
+    - name: entity_kind
+      value: "DaprState"
+  auth:
+    secretStore: secretstore

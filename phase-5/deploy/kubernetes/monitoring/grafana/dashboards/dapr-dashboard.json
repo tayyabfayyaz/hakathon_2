@@ -1,0 +1,166 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "Dapr Sidecar - HTTP Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(dapr_http_server_request_count[5m])) by (app_id, method)",
+          "legendFormat": "{{app_id}} - {{method}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "title": "Dapr Sidecar - HTTP Latency (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(dapr_http_server_latency_bucket[5m])) by (app_id, le))",
+          "legendFormat": "{{app_id}} p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      }
+    },
+    {
+      "title": "Pub/Sub - Messages Published",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(dapr_component_pubsub_ingress_count[5m])) by (app_id, topic)",
+          "legendFormat": "{{app_id}} -> {{topic}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "msg/s"
+        }
+      }
+    },
+    {
+      "title": "Pub/Sub - Messages Received",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(dapr_component_pubsub_egress_count[5m])) by (app_id, topic, status)",
+          "legendFormat": "{{app_id}} <- {{topic}} ({{status}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "msg/s"
+        }
+      }
+    },
+    {
+      "title": "State Store - Operation Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum(rate(dapr_component_state_count[5m])) by (app_id, operation)",
+          "legendFormat": "{{app_id}} - {{operation}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        }
+      }
+    },
+    {
+      "title": "State Store - Latency (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(dapr_component_state_latency_bucket[5m])) by (app_id, operation, le))",
+          "legendFormat": "{{app_id}} - {{operation}} p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      }
+    },
+    {
+      "title": "Service Invocation - Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "sum(rate(dapr_http_client_completed_count[5m])) by (app_id, method, status)",
+          "legendFormat": "{{app_id}} -> {{method}} ({{status}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "title": "Pod Status Overview",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_phase{namespace=\"dapr-demo\", phase=\"Running\"})",
+          "legendFormat": "Running Pods"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 2 }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["dapr", "microservices", "kubernetes"],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "constant",
+        "current": { "value": "dapr-demo" }
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "title": "Dapr Microservices Dashboard",
+  "uid": "dapr-demo-dashboard",
+  "version": 1
+}

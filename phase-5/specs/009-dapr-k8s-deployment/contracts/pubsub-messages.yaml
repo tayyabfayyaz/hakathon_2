@@ -1,0 +1,149 @@
+# Pub/Sub Message Contracts
+# Feature: 009-dapr-k8s-deployment
+# Date: 2026-02-03
+
+asyncapi: 2.6.0
+info:
+  title: Dapr Demo Pub/Sub API
+  version: 1.0.0
+  description: |
+    Pub/Sub message contracts for the Dapr microservices demo.
+    Messages are published to Kafka (or Redis fallback) via Dapr Pub/Sub building block.
+
+servers:
+  kafka-production:
+    url: '{kafka_bootstrap_servers}'
+    protocol: kafka
+    description: Confluent Cloud or Redpanda Cloud Kafka cluster
+    variables:
+      kafka_bootstrap_servers:
+        default: localhost:9092
+        description: Kafka bootstrap servers
+
+  redis-fallback:
+    url: 'redis://{redis_host}:{redis_port}'
+    protocol: redis
+    description: Redis Streams fallback
+    variables:
+      redis_host:
+        default: redis
+      redis_port:
+        default: '6379'
+
+channels:
+  orders:
+    description: Channel for order-related events
+    publish:
+      operationId: publishOrder
+      summary: Publish an order event
+      message:
+        $ref: '#/components/messages/OrderEvent'
+    subscribe:
+      operationId: subscribeOrders
+      summary: Subscribe to order events
+      message:
+        $ref: '#/components/messages/OrderEvent'
+
+  heartbeat:
+    description: Channel for service heartbeat/health events
+    publish:
+      operationId: publishHeartbeat
+      summary: Publish a heartbeat event
+      message:
+        $ref: '#/components/messages/HeartbeatEvent'
+
+components:
+  messages:
+    OrderEvent:
+      name: OrderEvent
+      title: Order Event
+      contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/cloudEvent'
+      payload:
+        $ref: '#/components/schemas/OrderPayload'
+
+    HeartbeatEvent:
+      name: HeartbeatEvent
+      title: Heartbeat Event
+      contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/cloudEvent'
+      payload:
+        $ref: '#/components/schemas/HeartbeatPayload'
+
+  schemas:
+    OrderPayload:
+      type: object
+      required:
+        - order_id
+        - amount
+      properties:
+        order_id:
+          type: string
+          description: Unique order identifier
+          example: 'ORD-2026-001'
+        amount:
+          type: number
+          format: float
+          description: Order amount in USD
+          example: 99.99
+        customer:
+          type: string
+          description: Customer identifier
+          example: 'customer-123'
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sku:
+                type: string
+              quantity:
+                type: integer
+          description: Order line items
+
+    HeartbeatPayload:
+      type: object
+      required:
+        - service
+        - status
+      properties:
+        service:
+          type: string
+          description: Service name
+          example: 'publisher-service'
+        status:
+          type: string
+          enum: [alive, starting, stopping]
+          example: 'alive'
+        uptime_seconds:
+          type: integer
+          description: Service uptime in seconds
+          example: 3600
+
+  messageTraits:
+    cloudEvent:
+      headers:
+        type: object
+        properties:
+          ce-specversion:
+            type: string
+            default: '1.0'
+          ce-type:
+            type: string
+            description: Event type
+          ce-source:
+            type: string
+            description: Event source URI
+          ce-id:
+            type: string
+            format: uuid
+            description: Unique event ID
+          ce-time:
+            type: string
+            format: date-time
+            description: Event timestamp
+          ce-datacontenttype:
+            type: string
+            default: 'application/json'

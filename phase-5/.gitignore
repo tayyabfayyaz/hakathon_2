@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kubernetes secrets (never commit)
+*.secret.yaml
+secrets/
+kubeconfig*
+*.key
+*.crt
+
+# Terraform (if used)
+.terraform/
+*.tfstate*
+*.tfvars
+
+# Test/coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Node (if any tooling)
+node_modules/
+*.exe

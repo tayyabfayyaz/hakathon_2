@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dapr-demo
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: publisher
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dapr-demo/publisher-service:latest"
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: subscriber
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dapr-demo/subscriber-service:latest"
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+
+commonLabels:
+  cloud.provider: gcp
+  environment: production

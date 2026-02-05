@@ -1,0 +1,159 @@
+# Default values for TodoList Pro Helm chart
+# This is a YAML-formatted file.
+
+# -- Global settings
+global:
+  # -- Image pull policy for all containers
+  imagePullPolicy: IfNotPresent
+
+# -- Frontend configuration (Next.js)
+frontend:
+  # -- Enable/disable frontend deployment
+  enabled: true
+  # -- Number of frontend replicas
+  replicas: 1
+  image:
+    # -- Frontend image repository
+    repository: todolist-frontend
+    # -- Frontend image tag
+    tag: local
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+  # -- Container port
+  port: 3000
+  service:
+    # -- Service type (NodePort for local access)
+    type: NodePort
+    # -- Service port
+    port: 80
+    # -- Target port (container port)
+    targetPort: 3000
+    # -- NodePort (leave empty for auto-assignment)
+    nodePort: 30080
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  # -- Liveness probe configuration
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  # -- Readiness probe configuration
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# -- Backend configuration (FastAPI)
+backend:
+  # -- Enable/disable backend deployment
+  enabled: true
+  # -- Number of backend replicas
+  replicas: 1
+  image:
+    # -- Backend image repository
+    repository: todolist-backend
+    # -- Backend image tag
+    tag: local
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+  # -- Container port
+  port: 8000
+  service:
+    # -- Service type (ClusterIP for internal access only)
+    type: ClusterIP
+    # -- Service port
+    port: 8000
+    # -- Target port (container port)
+    targetPort: 8000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  # -- Liveness probe configuration
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+  # -- Readiness probe configuration
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  # -- HPA (Horizontal Pod Autoscaler) configuration
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+
+# -- Application configuration (non-sensitive)
+config:
+  # -- API version string
+  apiVersion: "1.0.0"
+  # -- Debug mode (false for production)
+  debug: "false"
+  # -- CORS allowed origins
+  corsOrigins: "http://localhost:3000"
+  # -- Better Auth URL
+  betterAuthUrl: "http://localhost:3000"
+  # -- Backend API URL (internal)
+  backendUrl: "http://todolist-backend:8000"
+
+# -- Secrets configuration (sensitive)
+secrets:
+  # -- PostgreSQL database URL (required)
+  databaseUrl: ""
+  # -- Better Auth secret key (required)
+  betterAuthSecret: ""
+  # -- Gemini API key (optional)
+  geminiApiKey: ""
+
+# -- Ingress configuration
+ingress:
+  # -- Enable/disable ingress
+  enabled: false
+  # -- Ingress class name
+  className: "nginx"
+  # -- Ingress annotations
+  annotations: {}
+  # -- Ingress hosts
+  hosts:
+    - host: todolist.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: backend
+  # -- TLS configuration
+  tls: []
+
+# -- Network policies
+networkPolicy:
+  # -- Enable/disable network policies
+  enabled: false

@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dapr-demo
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: publisher
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: "${ACR_LOGIN_SERVER}/publisher-service:latest"
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Deployment
+      name: subscriber
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: "${ACR_LOGIN_SERVER}/subscriber-service:latest"
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+
+commonLabels:
+  cloud.provider: azure
+  environment: production

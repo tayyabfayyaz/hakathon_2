@@ -1,0 +1,64 @@
+# Monitoring Stack Helm Values
+# Used for configuring Prometheus, Grafana, and Fluentd deployments
+
+# Prometheus configuration
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.48.0
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  retention: 7d
+  scrapeInterval: 15s
+  evaluationInterval: 15s
+
+# Grafana configuration
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: "10.2.0"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "300m"
+  adminUser: admin
+  # adminPassword is set via Kubernetes secret grafana-secrets
+  datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus:9090
+      isDefault: true
+  dashboards:
+    - name: dapr-dashboard
+      file: dapr-dashboard.json
+
+# Fluentd configuration
+fluentd:
+  enabled: true
+  image:
+    repository: fluent/fluentd-kubernetes-daemonset
+    tag: v1.16-debian-elasticsearch8-1
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  # Namespaces to collect logs from
+  targetNamespaces:
+    - dapr-demo
+    - dapr-system
+
+# Namespace for monitoring components
+namespace: monitoring

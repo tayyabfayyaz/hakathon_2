@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - kafka-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - kafka-network
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: todo_app
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  todo-service:
+    build: ./todo-service
+    depends_on:
+      - kafka
+      - postgres
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/todo_app
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - app-network
+      - kafka-network
+
+  scheduler-service:
+    build: ./scheduler-service
+    depends_on:
+      - kafka
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/todo_app
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - app-network
+      - kafka-network
+
+  notification-service:
+    build: ./notification-service
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    networks:
+      - app-network
+      - kafka-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
+  kafka-network:
+    driver: bridge

@@ -1,0 +1,417 @@
+# Service API Contracts
+# Feature: 009-dapr-k8s-deployment
+# Date: 2026-02-03
+
+openapi: 3.0.3
+info:
+  title: Dapr Demo Services API
+  version: 1.0.0
+  description: |
+    REST API contracts for the Publisher and Subscriber microservices.
+    These APIs are invoked via Dapr service invocation or directly for health checks.
+
+servers:
+  - url: http://localhost:5000
+    description: Local development
+  - url: http://{service-name}.dapr-demo.svc.cluster.local
+    description: Kubernetes cluster (direct)
+  - url: http://localhost:3500/v1.0/invoke/{app-id}/method
+    description: Via Dapr sidecar (service invocation)
+
+tags:
+  - name: Publisher
+    description: Publisher service endpoints
+  - name: Subscriber
+    description: Subscriber service endpoints
+  - name: Health
+    description: Health check endpoints (both services)
+
+paths:
+  # ============ Publisher Service ============
+  /publish:
+    post:
+      tags:
+        - Publisher
+      summary: Manually trigger message publication
+      description: |
+        Publishes a message to the configured Pub/Sub topic.
+        Note: The cron binding also triggers this endpoint automatically.
+      operationId: publishMessage
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '200':
+          description: Message published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+        '500':
+          description: Failed to publish message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /cron-binding:
+    post:
+      tags:
+        - Publisher
+      summary: Cron binding trigger endpoint
+      description: |
+        Endpoint called by Dapr cron input binding.
+        Triggers automatic message publication on schedule.
+      operationId: cronTrigger
+      requestBody:
+        description: Dapr binding payload (empty for cron)
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Cron trigger processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+
+  /invoke-subscriber:
+    get:
+      tags:
+        - Publisher
+      summary: Invoke subscriber health via Dapr
+      description: |
+        Demonstrates Dapr service invocation by calling the subscriber's health endpoint.
+      operationId: invokeSubscriber
+      responses:
+        '200':
+          description: Subscriber health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          description: Failed to invoke subscriber
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============ Subscriber Service ============
+  /events/orders:
+    post:
+      tags:
+        - Subscriber
+      summary: Receive Pub/Sub messages
+      description: |
+        Endpoint subscribed to the 'orders' topic.
+        Called by Dapr when messages are published.
+      operationId: receiveOrder
+      requestBody:
+        required: true
+        content:
+          application/cloudevents+json:
+            schema:
+              $ref: '#/components/schemas/CloudEvent'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderEvent'
+      responses:
+        '200':
+          description: Message processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscribeResponse'
+        '500':
+          description: Processing failed (will trigger retry)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Message dropped (no retry)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DropResponse'
+
+  /dapr/subscribe:
+    get:
+      tags:
+        - Subscriber
+      summary: Dapr subscription declaration
+      description: |
+        Returns the list of Pub/Sub subscriptions for this service.
+        Called by Dapr at startup to configure topic routing.
+      operationId: getSubscriptions
+      responses:
+        '200':
+          description: Subscription configuration
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+
+  /state/{key}:
+    get:
+      tags:
+        - Subscriber
+      summary: Query stored state
+      description: |
+        Retrieves a state entry by key (for debugging/inspection).
+        Uses Dapr state store API internally.
+      operationId: getState
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "message||550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: State entry found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateEntry'
+        '404':
+          description: State entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============ Health Endpoints (Both Services) ============
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Basic health check
+      description: Returns service health status
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness probe
+      description: |
+        Kubernetes readiness probe endpoint.
+        Returns 200 when service can accept traffic.
+      operationId: readinessProbe
+      responses:
+        '200':
+          description: Service is ready
+        '503':
+          description: Service is not ready
+
+  /health/live:
+    get:
+      tags:
+        - Health
+      summary: Liveness probe
+      description: |
+        Kubernetes liveness probe endpoint.
+        Returns 200 when service process is alive.
+      operationId: livenessProbe
+      responses:
+        '200':
+          description: Service is alive
+        '503':
+          description: Service is not responding
+
+components:
+  schemas:
+    PublishRequest:
+      type: object
+      properties:
+        order_id:
+          type: string
+          example: "ORD-2026-001"
+        amount:
+          type: number
+          example: 99.99
+        customer:
+          type: string
+          example: "customer-123"
+
+    PublishResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "published"
+        message_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        topic:
+          type: string
+          example: "orders"
+        timestamp:
+          type: string
+          format: date-time
+
+    CloudEvent:
+      type: object
+      required:
+        - specversion
+        - type
+        - source
+        - id
+        - data
+      properties:
+        specversion:
+          type: string
+          example: "1.0"
+        type:
+          type: string
+          example: "order.created"
+        source:
+          type: string
+          example: "publisher-service"
+        id:
+          type: string
+          format: uuid
+        time:
+          type: string
+          format: date-time
+        datacontenttype:
+          type: string
+          default: "application/json"
+        data:
+          type: object
+
+    OrderEvent:
+      type: object
+      properties:
+        order_id:
+          type: string
+        amount:
+          type: number
+        customer:
+          type: string
+
+    SubscribeResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [SUCCESS, RETRY, DROP]
+          example: "SUCCESS"
+        message_id:
+          type: string
+        processed_at:
+          type: string
+          format: date-time
+
+    DropResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "DROP"
+        reason:
+          type: string
+          example: "Invalid message format"
+
+    Subscription:
+      type: object
+      required:
+        - pubsubname
+        - topic
+        - route
+      properties:
+        pubsubname:
+          type: string
+          example: "pubsub"
+        topic:
+          type: string
+          example: "orders"
+        route:
+          type: string
+          example: "/events/orders"
+        metadata:
+          type: object
+
+    StateEntry:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: object
+        etag:
+          type: string
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          example: "healthy"
+        service:
+          type: string
+          example: "publisher-service"
+        version:
+          type: string
+          example: "1.0.0"
+        timestamp:
+          type: string
+          format: date-time
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "dapr_sidecar"
+              status:
+                type: string
+                enum: [pass, warn, fail]
+              message:
+                type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: "Failed to publish message"
+        code:
+          type: string
+          example: "PUBSUB_ERROR"
+        details:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

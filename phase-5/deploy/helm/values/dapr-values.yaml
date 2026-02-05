@@ -1,0 +1,53 @@
+# Dapr Helm chart values for production deployment
+# Repo: https://dapr.github.io/helm-charts/
+
+global:
+  ha:
+    enabled: false  # Set to true for production HA mode
+  prometheus:
+    enabled: true
+    port: 9090
+  logAsJson: true
+
+dapr_dashboard:
+  enabled: true
+
+dapr_sidecar_injector:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+dapr_operator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+dapr_placement:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+dapr_sentry:
+  enabled: true
+  tls:
+    enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

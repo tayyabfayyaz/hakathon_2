@@ -1,0 +1,33 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub
+  namespace: dapr-demo
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    - name: brokers
+      secretKeyRef:
+        name: kafka-secrets
+        key: brokers
+    - name: authType
+      value: "password"
+    - name: saslUsername
+      secretKeyRef:
+        name: kafka-secrets
+        key: username
+    - name: saslPassword
+      secretKeyRef:
+        name: kafka-secrets
+        key: password
+    - name: saslMechanism
+      value: "PLAIN"
+    - name: initialOffset
+      value: "newest"
+    - name: maxMessageBytes
+      value: "1048576"
+    - name: consumeRetryInterval
+      value: "200ms"
+  auth:
+    secretStore: secretstore

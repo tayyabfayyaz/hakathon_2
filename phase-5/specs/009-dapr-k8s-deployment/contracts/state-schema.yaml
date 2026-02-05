@@ -1,0 +1,222 @@
+# State Store Schema Contracts
+# Feature: 009-dapr-k8s-deployment
+# Date: 2026-02-03
+
+# This document defines the schema for data stored in the Dapr state store.
+# State stores: Azure Cosmos DB (AKS), Google Firestore (GKE), Redis (fallback)
+
+---
+$schema: http://json-schema.org/draft-07/schema#
+title: Dapr Demo State Store Schemas
+
+definitions:
+  # Key naming convention
+  StateKey:
+    type: string
+    pattern: "^[a-z-]+\\|\\|[a-z-]+\\|\\|[a-f0-9-]+$"
+    description: |
+      State key format: {app_id}||{entity_type}||{entity_id}
+      Example: subscriber-service||message||550e8400-e29b-41d4-a716-446655440000
+    examples:
+      - "subscriber-service||message||550e8400-e29b-41d4-a716-446655440000"
+      - "subscriber-service||stats||daily-2026-02-03"
+
+  # Processed message state
+  MessageState:
+    type: object
+    description: State entry for a processed Pub/Sub message
+    required:
+      - message_id
+      - processed_at
+      - status
+    properties:
+      message_id:
+        type: string
+        format: uuid
+        description: Original message ID
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+      received_at:
+        type: string
+        format: date-time
+        description: When the message was received
+        example: "2026-02-03T10:30:00Z"
+
+      processed_at:
+        type: string
+        format: date-time
+        description: When processing completed (or last attempt)
+        example: "2026-02-03T10:30:01Z"
+
+      status:
+        type: string
+        enum:
+          - received
+          - processing
+          - completed
+          - failed
+        description: Current processing status
+        example: "completed"
+
+      original_payload:
+        type: object
+        description: Original message payload (for debugging/audit)
+        additionalProperties: true
+
+      result:
+        type: object
+        description: Processing outcome
+        properties:
+          success:
+            type: boolean
+            example: true
+          details:
+            type: string
+            example: "Order processed successfully"
+          error_code:
+            type: string
+            example: "VALIDATION_ERROR"
+          error_message:
+            type: string
+            example: "Invalid order amount"
+
+      retry_count:
+        type: integer
+        minimum: 0
+        maximum: 3
+        default: 0
+        description: Number of processing attempts
+
+      metadata:
+        type: object
+        description: Additional metadata
+        properties:
+          source_topic:
+            type: string
+            example: "orders"
+          processing_time_ms:
+            type: integer
+            example: 150
+          dapr_trace_id:
+            type: string
+
+  # Service statistics state
+  ServiceStats:
+    type: object
+    description: Aggregated statistics for a service
+    required:
+      - service_id
+      - period
+      - counters
+    properties:
+      service_id:
+        type: string
+        example: "subscriber-service"
+
+      period:
+        type: string
+        description: Stats aggregation period
+        example: "daily-2026-02-03"
+
+      counters:
+        type: object
+        properties:
+          messages_received:
+            type: integer
+            minimum: 0
+            example: 1000
+          messages_processed:
+            type: integer
+            minimum: 0
+            example: 995
+          messages_failed:
+            type: integer
+            minimum: 0
+            example: 5
+          state_saves:
+            type: integer
+            minimum: 0
+            example: 995
+          state_reads:
+            type: integer
+            minimum: 0
+            example: 50
+
+      timings:
+        type: object
+        properties:
+          avg_processing_time_ms:
+            type: number
+            example: 125.5
+          max_processing_time_ms:
+            type: number
+            example: 890.0
+          min_processing_time_ms:
+            type: number
+            example: 10.0
+
+      last_updated:
+        type: string
+        format: date-time
+        example: "2026-02-03T23:59:59Z"
+
+# Dapr State Store API contracts
+---
+# Save State Request (POST /v1.0/state/{storename})
+SaveStateRequest:
+  type: array
+  items:
+    type: object
+    required:
+      - key
+      - value
+    properties:
+      key:
+        $ref: '#/definitions/StateKey'
+      value:
+        oneOf:
+          - $ref: '#/definitions/MessageState'
+          - $ref: '#/definitions/ServiceStats'
+      etag:
+        type: string
+        description: Optional ETag for optimistic concurrency
+      metadata:
+        type: object
+        properties:
+          ttlInSeconds:
+            type: string
+            example: "86400"
+      options:
+        type: object
+        properties:
+          concurrency:
+            type: string
+            enum: [first-write, last-write]
+            default: last-write
+          consistency:
+            type: string
+            enum: [eventual, strong]
+            default: eventual
+
+# Get State Response (GET /v1.0/state/{storename}/{key})
+GetStateResponse:
+  oneOf:
+    - $ref: '#/definitions/MessageState'
+    - $ref: '#/definitions/ServiceStats'
+
+# Bulk State Response (POST /v1.0/state/{storename}/bulk)
+BulkStateResponse:
+  type: array
+  items:
+    type: object
+    properties:
+      key:
+        type: string
+      data:
+        oneOf:
+          - $ref: '#/definitions/MessageState'
+          - $ref: '#/definitions/ServiceStats'
+      etag:
+        type: string
+      error:
+        type: string

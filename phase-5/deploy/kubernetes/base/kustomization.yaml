@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dapr-demo
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - network-policies.yaml
+  - publisher-deployment.yaml
+  - publisher-service.yaml
+  - subscriber-deployment.yaml
+  - subscriber-service.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: dapr-demo

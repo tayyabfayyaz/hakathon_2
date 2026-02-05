@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: subscriber
+  namespace: dapr-demo
+  labels:
+    app: subscriber
+    app.kubernetes.io/name: subscriber
+    app.kubernetes.io/part-of: dapr-demo
+spec:
+  selector:
+    app: subscriber
+  ports:
+    - port: 80
+      targetPort: 5000
+      protocol: TCP
+      name: http
+  type: ClusterIP

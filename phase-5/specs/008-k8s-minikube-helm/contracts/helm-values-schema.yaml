@@ -1,0 +1,244 @@
+# Helm Values Schema for TodoList Pro Kubernetes Deployment
+# This defines the contract for configuring the Helm chart
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: TodoList Pro Helm Values
+type: object
+
+properties:
+  # Global settings
+  global:
+    type: object
+    properties:
+      imagePullPolicy:
+        type: string
+        enum: [Always, Never, IfNotPresent]
+        default: Never
+        description: Image pull policy for all containers
+      namespace:
+        type: string
+        default: default
+        description: Kubernetes namespace for deployment
+
+  # Frontend configuration
+  frontend:
+    type: object
+    required: [image]
+    properties:
+      enabled:
+        type: boolean
+        default: true
+      replicaCount:
+        type: integer
+        minimum: 1
+        default: 1
+      image:
+        type: object
+        properties:
+          repository:
+            type: string
+            default: todolist-frontend
+          tag:
+            type: string
+            default: local
+      service:
+        type: object
+        properties:
+          type:
+            type: string
+            enum: [ClusterIP, NodePort, LoadBalancer]
+            default: NodePort
+          port:
+            type: integer
+            default: 80
+          targetPort:
+            type: integer
+            default: 3000
+          nodePort:
+            type: integer
+            minimum: 30000
+            maximum: 32767
+      resources:
+        type: object
+        properties:
+          requests:
+            type: object
+            properties:
+              memory:
+                type: string
+                default: "128Mi"
+              cpu:
+                type: string
+                default: "100m"
+          limits:
+            type: object
+            properties:
+              memory:
+                type: string
+                default: "256Mi"
+              cpu:
+                type: string
+                default: "200m"
+      env:
+        type: object
+        properties:
+          NEXT_PUBLIC_API_URL:
+            type: string
+            default: "http://todolist-backend:8000"
+          NEXT_PUBLIC_BETTER_AUTH_URL:
+            type: string
+            default: "http://localhost:3000"
+
+  # Backend configuration
+  backend:
+    type: object
+    required: [image]
+    properties:
+      enabled:
+        type: boolean
+        default: true
+      replicaCount:
+        type: integer
+        minimum: 1
+        default: 1
+      image:
+        type: object
+        properties:
+          repository:
+            type: string
+            default: todolist-backend
+          tag:
+            type: string
+            default: local
+      service:
+        type: object
+        properties:
+          type:
+            type: string
+            enum: [ClusterIP, NodePort]
+            default: ClusterIP
+          port:
+            type: integer
+            default: 8000
+          targetPort:
+            type: integer
+            default: 8000
+      resources:
+        type: object
+        properties:
+          requests:
+            type: object
+            properties:
+              memory:
+                type: string
+                default: "256Mi"
+              cpu:
+                type: string
+                default: "200m"
+          limits:
+            type: object
+            properties:
+              memory:
+                type: string
+                default: "512Mi"
+              cpu:
+                type: string
+                default: "500m"
+      probes:
+        type: object
+        properties:
+          liveness:
+            type: object
+            properties:
+              path:
+                type: string
+                default: "/health"
+              initialDelaySeconds:
+                type: integer
+                default: 15
+              periodSeconds:
+                type: integer
+                default: 20
+          readiness:
+            type: object
+            properties:
+              path:
+                type: string
+                default: "/health"
+              initialDelaySeconds:
+                type: integer
+                default: 5
+              periodSeconds:
+                type: integer
+                default: 10
+
+  # Secrets configuration
+  secrets:
+    type: object
+    properties:
+      create:
+        type: boolean
+        default: true
+        description: Whether to create secrets from values
+      databaseUrl:
+        type: string
+        description: PostgreSQL connection string (required)
+      betterAuthSecret:
+        type: string
+        description: Authentication secret key (required)
+      geminiApiKey:
+        type: string
+        description: Google Gemini API key (optional)
+
+  # ConfigMap configuration
+  config:
+    type: object
+    properties:
+      corsOrigins:
+        type: string
+        default: "http://localhost:3000,http://localhost:30080"
+      apiVersion:
+        type: string
+        default: "1.0.0"
+      debug:
+        type: boolean
+        default: false
+
+  # Ingress configuration
+  ingress:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        default: false
+      className:
+        type: string
+        default: nginx
+      host:
+        type: string
+        default: todolist.local
+      annotations:
+        type: object
+        additionalProperties:
+          type: string
+
+  # Autoscaling configuration
+  autoscaling:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        default: false
+      minReplicas:
+        type: integer
+        default: 1
+      maxReplicas:
+        type: integer
+        default: 5
+      targetCPUUtilizationPercentage:
+        type: integer
+        default: 80
+
+required:
+  - frontend
+  - backend

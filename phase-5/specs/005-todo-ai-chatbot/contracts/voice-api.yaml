@@ -1,0 +1,160 @@
+openapi: 3.0.3
+info:
+  title: Voice Preferences API
+  description: API for managing user voice assistant preferences
+  version: 1.0.0
+
+paths:
+  /api/{user_id}/voice/preferences:
+    get:
+      summary: Get user voice preferences
+      description: Returns the user's voice assistant settings
+      operationId: getVoicePreferences
+      tags:
+        - Voice
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User ID from JWT
+      responses:
+        '200':
+          description: Voice preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoicePreferences'
+        '401':
+          description: Unauthorized - Invalid or missing JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - User ID mismatch with JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update user voice preferences
+      description: Updates the user's voice assistant settings
+      operationId: updateVoicePreferences
+      tags:
+        - Voice
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User ID from JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoicePreferencesUpdate'
+      responses:
+        '200':
+          description: Voice preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoicePreferences'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized - Invalid or missing JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - User ID mismatch with JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    VoicePreferences:
+      type: object
+      required:
+        - user_id
+        - voice_output_enabled
+        - continuous_mode_enabled
+        - updated_at
+      properties:
+        user_id:
+          type: string
+          description: User's unique identifier
+          example: "user_abc123"
+        voice_output_enabled:
+          type: boolean
+          description: Whether AI responses should be spoken aloud
+          default: true
+          example: true
+        continuous_mode_enabled:
+          type: boolean
+          description: Whether continuous listening mode is active
+          default: false
+          example: false
+        preferred_voice:
+          type: string
+          nullable: true
+          description: Browser voice URI for TTS (null = browser default)
+          example: "Microsoft David - English (United States)"
+        updated_at:
+          type: string
+          format: date-time
+          description: When preferences were last updated
+          example: "2026-01-25T14:30:00Z"
+
+    VoicePreferencesUpdate:
+      type: object
+      properties:
+        voice_output_enabled:
+          type: boolean
+          description: Whether AI responses should be spoken aloud
+          example: true
+        continuous_mode_enabled:
+          type: boolean
+          description: Whether continuous listening mode is active
+          example: false
+        preferred_voice:
+          type: string
+          nullable: true
+          description: Browser voice URI for TTS (null = browser default)
+          example: "Microsoft David - English (United States)"
+
+    Error:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "User ID mismatch"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Voice
+    description: Voice assistant preference management

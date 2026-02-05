@@ -1,0 +1,6 @@
+kafka-python==2.0.2
+pydantic==2.5.0
+pytz==2023.3
+requests==2.31.0
+twilio==8.11.0
+firebase-admin==6.2.0

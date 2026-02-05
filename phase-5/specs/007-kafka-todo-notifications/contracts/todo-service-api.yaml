@@ -1,0 +1,293 @@
+openapi: 3.0.0
+info:
+  title: Todo Service API
+  version: 1.0.0
+  description: API for managing todos in the AI-powered Todo application
+
+paths:
+  /api/v1/todos:
+    post:
+      summary: Create a new todo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoCreateRequest'
+      responses:
+        '201':
+          description: Todo created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Invalid input
+        '500':
+          description: Internal server error
+
+  /api/v1/todos/{todo_id}:
+    get:
+      summary: Get a specific todo
+      parameters:
+        - name: todo_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Todo retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '404':
+          description: Todo not found
+        '500':
+          description: Internal server error
+    put:
+      summary: Update an existing todo
+      parameters:
+        - name: todo_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoUpdateRequest'
+      responses:
+        '200':
+          description: Todo updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Todo'
+        '400':
+          description: Invalid input
+        '404':
+          description: Todo not found
+        '500':
+          description: Internal server error
+    delete:
+      summary: Delete a todo
+      parameters:
+        - name: todo_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Todo deleted successfully
+        '404':
+          description: Todo not found
+        '500':
+          description: Internal server error
+
+  /api/v1/users/{user_id}/preferences:
+    get:
+      summary: Get user preferences
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+        '404':
+          description: User not found
+        '500':
+          description: Internal server error
+    put:
+      summary: Update user preferences
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferencesUpdateRequest'
+      responses:
+        '200':
+          description: User preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+        '400':
+          description: Invalid input
+        '404':
+          description: User not found
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    Todo:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the todo
+        user_id:
+          type: string
+          description: Reference to the user who owns this todo
+        title:
+          type: string
+          description: Title of the todo
+        description:
+          type: string
+          description: Detailed description of the todo
+        deadline:
+          type: string
+          format: date-time
+          description: Deadline for the todo
+        priority:
+          type: string
+          enum: [low, normal, high]
+          description: Priority level of the todo
+        status:
+          type: string
+          enum: [pending, completed, deleted]
+          description: Current status of the todo
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the todo was created
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the todo was last updated
+      required:
+        - id
+        - user_id
+        - title
+        - created_at
+        - updated_at
+
+    TodoCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the todo
+        description:
+          type: string
+          description: Detailed description of the todo
+        deadline:
+          type: string
+          format: date-time
+          description: Deadline for the todo
+        priority:
+          type: string
+          enum: [low, normal, high]
+          description: Priority level of the todo
+        user_id:
+          type: string
+          description: Reference to the user who owns this todo
+      required:
+        - title
+        - user_id
+
+    TodoUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Title of the todo
+        description:
+          type: string
+          description: Detailed description of the todo
+        deadline:
+          type: string
+          format: date-time
+          description: Deadline for the todo
+        priority:
+          type: string
+          enum: [low, normal, high]
+          description: Priority level of the todo
+
+    UserPreferences:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: Reference to the user
+        notification_channels:
+          type: array
+          items:
+            type: string
+            enum: [email, sms, push]
+          description: List of preferred notification channels
+        advance_notification_minutes:
+          type: integer
+          minimum: 1
+          maximum: 10080  # 7 days in minutes
+          description: Minutes before deadline to send reminder
+        do_not_disturb_start:
+          type: string
+          format: time
+          description: Start time for do-not-disturb period
+        do_not_disturb_end:
+          type: string
+          format: time
+          description: End time for do-not-disturb period
+        timezone:
+          type: string
+          default: UTC
+          description: User's preferred timezone
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when preferences were created
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when preferences were last updated
+      required:
+        - user_id
+        - notification_channels
+        - created_at
+        - updated_at
+
+    UserPreferencesUpdateRequest:
+      type: object
+      properties:
+        notification_channels:
+          type: array
+          items:
+            type: string
+            enum: [email, sms, push]
+          description: List of preferred notification channels
+        advance_notification_minutes:
+          type: integer
+          minimum: 1
+          maximum: 10080  # 7 days in minutes
+          description: Minutes before deadline to send reminder
+        do_not_disturb_start:
+          type: string
+          format: time
+          description: Start time for do-not-disturb period
+        do_not_disturb_end:
+          type: string
+          format: time
+          description: End time for do-not-disturb period
+        timezone:
+          type: string
+          description: User's preferred timezone

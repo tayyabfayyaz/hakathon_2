@@ -1,0 +1,55 @@
+# Local development values for TodoList Pro Kubernetes deployment
+# Copy this file to values-local.yaml and fill in your secrets
+
+# IMPORTANT: Never commit values-local.yaml to version control!
+
+# Database connection (Neon PostgreSQL)
+secrets:
+  # PostgreSQL connection string with asyncpg driver
+  # Format: postgresql+asyncpg://user:password@host/database?ssl=require
+  databaseUrl: "postgresql+asyncpg://user:password@neon-tech-demo.internal/db?ssl=require"
+
+  # Better Auth secret (32+ character secret key)
+  # Generate with: openssl rand -hex 32
+  betterAuthSecret: "0123456789abcdef0123456789abcdef"
+
+  # Gemini API key (optional, for AI features)
+  geminiApiKey: ""
+
+# Optional overrides for local development
+frontend:
+  replicas: 1
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "500m"
+  # Adjust health checks to be less aggressive for Next.js app startup
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 3000
+    initialDelaySeconds: 30  # Increased from default
+    periodSeconds: 30        # Increased from default
+    timeoutSeconds: 10       # Increased from default
+    failureThreshold: 5      # Increased from default
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 3000
+    initialDelaySeconds: 20  # Increased from default
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+backend:
+  replicas: 1
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"

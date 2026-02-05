@@ -1,0 +1,201 @@
+name: Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["CI - Build and Test"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Target platform'
+        required: true
+        type: choice
+        options:
+          - aks
+          - gke
+          - both
+        default: both
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+        default: dev
+
+env:
+  NAMESPACE: dapr-demo
+
+jobs:
+  # T059: AKS deployment
+  deploy-aks:
+    name: Deploy to AKS
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'aks' || github.event.inputs.platform == 'both')) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    environment: azure
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Install Dapr on cluster
+        run: |
+          helm repo add dapr https://dapr.github.io/helm-charts/
+          helm repo update
+          helm upgrade --install dapr dapr/dapr \
+            --namespace dapr-system \
+            --create-namespace \
+            -f deploy/helm/values/dapr-values.yaml \
+            --wait --timeout 5m
+
+      - name: Create namespace
+        run: kubectl apply -f deploy/kubernetes/base/namespace.yaml
+
+      - name: Deploy Dapr components
+        run: |
+          kubectl apply -f deploy/dapr/components/pubsub-redis.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f deploy/dapr/components/statestore-redis.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f deploy/dapr/components/binding-cron.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f deploy/dapr/config/config.yaml -n ${{ env.NAMESPACE }}
+
+      - name: Deploy application via Kustomize
+        run: |
+          # Substitute image tags
+          cd deploy/kubernetes/overlays/aks
+          kustomize edit set image \
+            publisher=${{ secrets.ACR_LOGIN_SERVER }}/publisher-service:${{ github.sha }} \
+            subscriber=${{ secrets.ACR_LOGIN_SERVER }}/subscriber-service:${{ github.sha }}
+          kubectl apply -k .
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/publisher -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/subscriber -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Verify pods running
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          kubectl get pods -n ${{ env.NAMESPACE }} -o jsonpath='{.items[*].status.containerStatuses[*].ready}' | tr ' ' '\n' | grep -v true && exit 1 || true
+
+  # T060: GKE deployment
+  deploy-gke:
+    name: Deploy to GKE
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'gke' || github.event.inputs.platform == 'both')) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    environment: gcp
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
+          location: ${{ secrets.GKE_ZONE }}
+
+      - name: Install Dapr on cluster
+        run: |
+          helm repo add dapr https://dapr.github.io/helm-charts/
+          helm repo update
+          helm upgrade --install dapr dapr/dapr \
+            --namespace dapr-system \
+            --create-namespace \
+            -f deploy/helm/values/dapr-values.yaml \
+            --wait --timeout 5m
+
+      - name: Create namespace
+        run: kubectl apply -f deploy/kubernetes/base/namespace.yaml
+
+      - name: Deploy Dapr components
+        run: |
+          kubectl apply -f deploy/dapr/components/pubsub-redis.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f deploy/dapr/components/statestore-redis.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f deploy/dapr/components/binding-cron.yaml -n ${{ env.NAMESPACE }}
+          kubectl apply -f deploy/dapr/config/config.yaml -n ${{ env.NAMESPACE }}
+
+      - name: Deploy application via Kustomize
+        run: |
+          cd deploy/kubernetes/overlays/gke
+          kustomize edit set image \
+            publisher=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/dapr-demo/publisher-service:${{ github.sha }} \
+            subscriber=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/dapr-demo/subscriber-service:${{ github.sha }}
+          kubectl apply -k .
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/publisher -n ${{ env.NAMESPACE }} --timeout=300s
+          kubectl rollout status deployment/subscriber -n ${{ env.NAMESPACE }} --timeout=300s
+
+      - name: Verify pods running
+        run: |
+          kubectl get pods -n ${{ env.NAMESPACE }}
+          kubectl get pods -n ${{ env.NAMESPACE }} -o jsonpath='{.items[*].status.containerStatuses[*].ready}' | tr ' ' '\n' | grep -v true && exit 1 || true
+
+  # T061: Smoke tests after deployment
+  smoke-test:
+    name: Run Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-aks, deploy-gke]
+    if: always() && (needs.deploy-aks.result == 'success' || needs.deploy-gke.result == 'success')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl context
+        run: echo "Using context from deployment jobs"
+
+      - name: Run deployment validation
+        run: |
+          chmod +x tests/smoke/validate-deployment.sh
+          ./tests/smoke/validate-deployment.sh
+
+      - name: Run pub/sub integration test
+        run: |
+          chmod +x tests/integration/test_pubsub.sh
+          ./tests/integration/test_pubsub.sh
+
+      - name: Run state store integration test
+        run: |
+          chmod +x tests/integration/test_state.sh
+          ./tests/integration/test_state.sh
+
+      - name: Run service invocation test
+        run: |
+          chmod +x tests/integration/test_invocation.sh
+          ./tests/integration/test_invocation.sh
+
+      - name: Report results
+        if: always()
+        run: |
+          echo "=== Deployment Smoke Test Summary ==="
+          echo "Namespace: ${{ env.NAMESPACE }}"
+          kubectl get pods -n dapr-demo 2>/dev/null || echo "No cluster access in this job"

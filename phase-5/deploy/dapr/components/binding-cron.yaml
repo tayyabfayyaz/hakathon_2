@@ -1,0 +1,15 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: cron-binding
+  namespace: dapr-demo
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+    - name: schedule
+      value: "@every 30s"
+    - name: direction
+      value: "input"
+scopes:
+  - publisher-service
